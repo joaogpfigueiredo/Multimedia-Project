@@ -1,12 +1,14 @@
 import matplotlib.pyplot as plt
 import matplotlib.colors as clr
 import numpy as np
+import cv2
 
 cm_red = clr.LinearSegmentedColormap.from_list("red", [(0, 0, 0), (1, 0, 0)], N=256)
 cm_green = clr.LinearSegmentedColormap.from_list("green", [(0, 0, 0), (0, 1, 0)], N=256)
 cm_blue = clr.LinearSegmentedColormap.from_list("blue", [(0, 0, 0), (0, 0, 1)], N=256)
 cm_grey = clr.LinearSegmentedColormap.from_list("grey", [(0, 0, 0), (1, 1, 1)], N=256)
 
+# General Functions
 def showImage(img, cm, title="Imagem"):
     plt.figure()
     plt.imshow(img, cmap=cm)
@@ -34,7 +36,7 @@ def showSubMatrix(matrix, i, j, dim):
     elif nd == 3:
         print(matrix[i:i+dim, j:j+dim, 0])
 
-
+# Ex 4 
 def padding(img, block_size = 32):
     height, width, __ = img.shape
     
@@ -52,7 +54,7 @@ def remove_padding(image_padded, original_shape):
 
     return original_img
     
-
+# Ex 5
 def rgb_to_ycbcr(img):
     matrix = np.array([[0.299, 0.587, 0.114], 
                        [-0.168736, -0.331264, 0.5], 
@@ -63,6 +65,7 @@ def rgb_to_ycbcr(img):
     Cr = matrix[2][0] * img[:, :, 0] + matrix[2][1] * img[:, :, 1] + matrix[2][2] * img[:, :, 2] + 128
     
     return Y, Cb, Cr
+
 
 def ycbcr_to_rgb(Y , Cb, Cr):
     inv_matrix = np.linalg.inv([[0.299, 0.587, 0.114], 
@@ -83,7 +86,45 @@ def ycbcr_to_rgb(Y , Cb, Cr):
     
     return R, G, B
 
+# Ex 6
+def downsampling(Y, Cb, Cr, variant, interpolation):
+    if(variant == [4,2,0]):
+        if(interpolation == "linear"):
+            Cb_d = cv2.resize(Cb,None,fx = 0.5,fy = 0.5, interpolation=cv2.INTER_LINEAR)
+            Cr_d = cv2.resize(Cr,None,fx = 0.5,fy = 0.5, interpolation=cv2.INTER_LINEAR)
+        elif(interpolation == "cubic"):
+            Cb_d = cv2.resize(Cb,None,fx = 0.5,fy = 0.5, interpolation=cv2.INTER_CUBIC)
+            Cr_d = cv2.resize(Cr,None,fx = 0.5,fy = 0.5, interpolation=cv2.INTER_CUBIC)
+    elif(variant == [4,2,2]):
+        if(interpolation == "linear"):
+            Cb_d = cv2.resize(Cb,None,fx = 0.5,fy = 1, interpolation=cv2.INTER_LINEAR)
+            Cr_d = cv2.resize(Cr,None,fx = 0.5,fy = 1, interpolation=cv2.INTER_LINEAR)
+        elif(interpolation == "cubic"):
+            Cb_d = cv2.resize(Cb,None,fx = 0.5,fy = 1, interpolation=cv2.INTER_CUBIC)
+            Cr_d = cv2.resize(Cr,None,fx = 0.5,fy = 1, interpolation=cv2.INTER_CUBIC)
+        
+    return Y, Cb_d,Cr_d
 
+
+def upsampling(Y, Cb, Cr, variant, interpolation):
+    if(variant == [4,2,0]):
+        if(interpolation == "linear"):
+            Cb_d = cv2.resize(Cb,None,fx = 2,fy = 2, interpolation=cv2.INTER_LINEAR)
+            Cr_d = cv2.resize(Cr,None,fx = 2,fy = 2, interpolation=cv2.INTER_LINEAR)
+        elif(interpolation == "cubic"):
+            Cb_d = cv2.resize(Cb,None,fx = 2,fy = 2, interpolation=cv2.INTER_CUBIC)
+            Cr_d = cv2.resize(Cr,None,fx = 2,fy = 2, interpolation=cv2.INTER_CUBIC)
+    elif(variant == [4,2,2]):
+        if(interpolation == "linear"):
+            Cb_d = cv2.resize(Cb,None,fx = 2,fy = 1, interpolation=cv2.INTER_LINEAR)
+            Cr_d = cv2.resize(Cr,None,fx = 2,fy = 1, interpolation=cv2.INTER_LINEAR)
+        elif(interpolation == "cubic"):
+            Cb_d = cv2.resize(Cb,None,fx = 2,fy = 1, interpolation=cv2.INTER_CUBIC)
+            Cr_d = cv2.resize(Cr,None,fx = 2,fy = 1, interpolation=cv2.INTER_CUBIC)
+        
+    return Y, Cb_d,Cr_d
+
+# Encoder and Decoder
 def encoder(img):
     R = img[:, :, 0]
     G = img[:, :, 1]
@@ -100,11 +141,111 @@ def encoder(img):
     showImage(Y, cm_grey, "Canal Y")
     showImage(Cb, cm_grey, "Canal Cb")
     showImage(Cr, cm_grey, "Canal Cr")
+    
+    
+    print("\n################ DOWNSAMPLING####################\n")
+    
+    print("Cb shape before Downsampling: ", Cb.shape)
+    print("Cd shape before Downsampling: ", Cr.shape)
+    
+    '''
+    print("\nVariant[4:2:2]\n")
+    
+    ######################LINEAR DOWNSAMPLING 4:2:2 #############################
+    
+    Y, Cb_d, Cr_d = downsampling(Y, Cb, Cr, [4,2,2],"linear")
+    
+    showImage(Y, cm_grey, " Y (Downsampling (Linear) with [4:2:2])")
+    showImage(Cb_d, cm_grey, "Cb (Downsampling (Linear) with [4:2:2)")
+    showImage(Cr_d, cm_grey, "Cr (Downsampling (Linear) with [4:2:2])")
+    
+    ######################CUBIC DOWNSAMPLING 4:2:2 #############################
+    
+    showImage(Y, cm_grey, " Y (Downsampling (Cubic) with [4:2:2])")
+    showImage(Cb_d, cm_grey, "Cb (Downsampling (Cubic) with [4:2:2])")
+    showImage(Cr_d, cm_grey, "Cr (Downsampling (cubic) with [4:2:2])")
+    
+    print("Cb shape after Downsampling([4:2:2]):", Cb_d.shape)
+    print("Cd shape after Downsampling([4:2:2]):", Cr_d.shape)
+    '''
+    
+    print("\nVariant[4:2:0]\n")
+    
+    ######################LINEAR DOWNSAMPLING 4:2:0 #############################
+    
+    Y, Cb_d, Cr_d = downsampling(Y, Cb, Cr, [4,2,0], "linear")
+    
+    showImage(Y, cm_grey, " Y (Downsampling (Linear) with [4:2:0])")
+    showImage(Cb_d, cm_grey, "Cb (Downsampling (Linear) with [4:2:0)")
+    showImage(Cr_d, cm_grey, "Cr (Downsampling (Linear) with [4:2:0])")
+    
+    ######################CUBIC DOWNSAMPLING 4:2:0 #############################
+    
+    Y, Cb_d, Cr_d = downsampling(Y, Cb, Cr, [4,2,0], "cubic")
+    
+    showImage(Y, cm_grey, " Y (Downsampling (Cubic) with [4:2:0])")
+    showImage(Cb_d, cm_grey, "Cb (Downsampling (Cubic) with [4:2:0])")
+    showImage(Cr_d, cm_grey, "Cr (Downsampling (cubic) with [4:2:0])")
+    
+    print("Cb shape after Downsampling([4:2:2]):", Cb_d.shape)
+    print("Cd shape after Downsampling([4:2:2]):", Cr_d.shape)
+    
+    print("\n################################################")
 
     return Y, Cb, Cr
 
 
 def decoder(Y, Cb, Cr):
+
+    print("\n################ UPSAMPLING####################\n")
+    
+    print("Cb shape before Upsampling: ",Cb.shape)
+    print("Cd shape before Upsampling: ",Cr.shape)
+    
+    '''
+    print("\nVariant[4:2:2]\n")
+    
+    ######################LINEAR DOWNSAMPLING 4:2:2 #############################
+    
+    Y, Cb_d, Cr_d = upsampling(Y, Cb, Cr, [4,2,2], "linear")
+    
+    showImage(Y, cm_grey, " Y (Upsampling (Linear) with [4:2:2])")
+    showImage(Cb_d, cm_grey, "Cb (Upsampling (Linear) with [4:2:2)")
+    showImage(Cr_d, cm_grey, "Cr (Upsampling (Linear) with [4:2:2])")
+    
+    ######################CUBIC DOWNSAMPLING 4:2:2 #############################
+    
+    showImage(Y, cm_grey, " Y (Upsampling (Cubic) with [4:2:2])")
+    showImage(Cb_d, cm_grey, "Cb (Upsampling (Cubic) with [4:2:2])")
+    showImage(Cr_d, cm_grey, "Cr (Upsampling (cubic) with [4:2:2])")
+    
+    print("Cb shape after Upsampling([4:2:2]):", Cb_d.shape)
+    print("Cd shape after Upsampling([4:2:2]):", Cr_d.shape)
+    '''
+    
+    print("\nVariant[4:2:0]\n")
+    
+    ######################LINEAR DOWNSAMPLING 4:2:0 #############################
+    
+    Y, Cb_d, Cr_d = upsampling(Y, Cb, Cr, [4,2,0], "linear")
+    
+    showImage(Y, cm_grey, " Y (Upsampling (Linear) with [4:2:0])")
+    showImage(Cb_d, cm_grey, "Cb (Upsampling (Linear) with [4:2:0)")
+    showImage(Cr_d, cm_grey, "Cr (Upsampling (Linear) with [4:2:0])")
+    
+    ######################CUBIC DOWNSAMPLING 4:2:0 #############################
+    
+    Y, Cb_d, Cr_d = upsampling(Y, Cb, Cr, [4,2,0], "cubic")
+    
+    showImage(Y, cm_grey, " Y (Upsampling (Cubic) with [4:2:0])")
+    showImage(Cb_d, cm_grey, "Cb (Upsampling (Cubic) with [4:2:0])")
+    showImage(Cr_d, cm_grey, "Cr (Upsampling (cubic) with [4:2:0])")
+    
+    print("Cb shape after Upsampling([4:2:0]):", Cb_d.shape)
+    print("Cd shape after Upsampling([4:2:0]):", Cr_d.shape)
+    
+    print("\n################################################")
+
 
     R, G, B = ycbcr_to_rgb(Y, Cb, Cr)
 
