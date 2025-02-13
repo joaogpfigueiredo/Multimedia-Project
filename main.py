@@ -23,34 +23,54 @@ def showSubMatrix(matrix, i, j, dim):
     elif nd == 3:
         print(matrix[i:i+dim, j:j+dim, 0])
 
-def pad_channel(channel, block_size=32):
-    nl, nc = channel.shape
-    
-    pad_nl = (block_size - nl % block_size) % block_size
-    pad_nc = (block_size - nc % block_size) % block_size
-    padded_channel = np.pad(channel, ((0, pad_nl), (0, pad_nc)), mode='edge')
-    
-    return padded_channel, nl, nc
 
-def remove_padding(channel, original_nl, original_nc):
-    return channel[:original_nl, :original_nc]
+    height, width, __ = img.shape
+    
+    pad_height = block_size - (height % block_size) if height % block_size != 0 else 0
+    pad_width = block_size - (width % block_size) if width % block_size != 0 else 0
+    img_pad = np.pad(img, ((0, pad_height), (0, pad_width), (0, 0)), mode='edge')
+    
+    return img_pad
+
+
+def remove_padding(image_padded, original_shape):
+    height, width, __ = original_shape
+    
+    original_img = image_padded[:height, :width, :]
+
+    return original_img
+    
 
 def rgb_to_ycbcr(img):
+    matrix = np.array([[0.299, 0.587, 0.114], 
+                       [-0.168736, -0.331264, 0.5], 
+                       [0.5, -0.418688, -0.081312]])
     
-    Y = 0.299 * img[:, :, 0] + 0.587 * img[:, :, 1] + 0.114 * img[:, :, 2]
-    Cb = 128 - 0.168736 * img[:, :, 0] - 0.331264 * img[:, :, 1] + 0.5 * img[:, :, 2]
-    Cr = 128 + 0.5 * img[:, :, 0] - 0.418688 * img[:, :, 1] - 0.081312 * img[:, :, 2]
+    Y = matrix[0][0] * img[:, :, 0] + matrix[0][1] * img[:, :, 1] + matrix[0][2] * img[:, :, 2] 
+    Cb = matrix[1][0] * img[:, :, 0] + matrix[1][1] * img[:, :, 1] + matrix[1][2] * img[:, :, 2] + 128
+    Cr = matrix[2][0] * img[:, :, 0] + matrix[2][1] * img[:, :, 1] + matrix[2][2] * img[:, :, 2] + 128
     
-    return np.stack((Y, Cb, Cr), axis=-1)
+    return Y, Cb, Cr
 
-def ycbcr_to_rgb(img):
+def ycbcr_to_rgb(Y , Cb, Cr):
+    inv_matrix = np.linalg.inv([[0.299, 0.587, 0.114], 
+                                [-0.168736, -0.331264, 0.5], 
+                                [0.5, -0.418688, -0.081312]])
     
-    R = img[:, :, 0] + 1.402 * (img[:, :, 2] - 128)
-    G = img[:, :, 0] - 0.344136 * (img[:, :, 1] - 128) - 0.714136 * (img[:, :, 2] - 128)
-    B = img[:, :, 0] + 1.772 * (img[:, :, 1] - 128)
-    rgb_img = np.stack((R, G, B), axis=-1)
+    R = Y * inv_matrix[0][0] + (Cb - 128) * inv_matrix[0][1] + (Cr - 128) * inv_matrix[0][2]
+    G = Y * inv_matrix[1][0] + (Cb - 128) * inv_matrix[1][1] + (Cr - 128) * inv_matrix[1][2]
+    B = Y * inv_matrix[2][0] + (Cb - 128) * inv_matrix[2][1] + (Cr - 128) * inv_matrix[2][2]
     
-    return np.clip(rgb_img, 0, 255).astype(np.uint8)
+    R = np.clip(R, 0, 255)
+    G = np.clip(G, 0, 255)
+    B = np.clip(B, 0, 255)
+
+    R = np.round(R).astype(np.uint8)
+    G = np.round(G).astype(np.uint8)
+    B = np.round(B).astype(np.uint8)
+    
+    return R, G, B
+
 
 def encoder(img):
     R = img[:, :, 0]
@@ -61,54 +81,44 @@ def encoder(img):
     showImage(G, cm_green, "Canal G")
     showImage(B, cm_blue, "Canal B")
 
-    ycbcr_img = rgb_to_ycbcr(img)
-    Y = ycbcr_img[:, :, 0]
-    Cb = ycbcr_img[:, :, 1]
-    Cr = ycbcr_img[:, :, 2]
+    image_padded = padding(img)
+
+    Y, Cb, Cr = rgb_to_ycbcr(image_padded)
     
     showImage(Y, cm_grey, "Canal Y")
     showImage(Cb, cm_grey, "Canal Cb")
     showImage(Cr, cm_grey, "Canal Cr")
 
-    Y_padded, Y_nl, Y_nc = pad_channel(Y)
-    Cb_padded, Cb_nl, Cb_nc = pad_channel(Cb)
-    Cr_padded, Cr_nl, Cr_nc = pad_channel(Cr)
-
-    return (Y_padded, Y_nl, Y_nc), (Cb_padded, Cb_nl, Cb_nc), (Cr_padded, Cr_nl, Cr_nc)
+    return Y, Cb, Cr
 
 
-def decoder(Y_info, Cb_info, Cr_info):
-    Y_padded, Y_nl, Y_nc = Y_info
-    Cb_padded, Cb_nl, Cb_nc = Cb_info
-    Cr_padded, Cr_nl, Cr_nc = Cr_info
+def decoder(Y, Cb, Cr):
+
+    R, G, B = ycbcr_to_rgb(Y, Cb, Cr)
+
+    img = channels_to_img(R, G, B)
+
+    original_img = remove_padding(img, img.shape)
     
-    Y = remove_padding(Y_padded, Y_nl, Y_nc)
-    Cb = remove_padding(Cb_padded, Cb_nl, Cb_nc)
-    Cr = remove_padding(Cr_padded, Cr_nl, Cr_nc)
-    
-    ycbcr_img = np.stack((Y, Cb, Cr), axis=-1)
-    rgb_img = ycbcr_to_rgb(ycbcr_img)
-    
-    return rgb_img
+    return original_img
 
 def main():
     filename = "imagens/airport.bmp"
     img = plt.imread(filename)
     showImage(img, None, "Original Image")
     
-    print("Image type:", type(img))
-    print("Image shape:", img.shape)
+    # print("Image type:", type(img))
+    # print("Image shape:", img.shape)
     
-    print(img[0:8, 0:8, 0])
-    print("Image data type:", img.dtype)
+    # print(img[0:8, 0:8, 0])
+    # print("Image data type:", img.dtype)
     
-    showSubMatrix(img, 0, 0, 8)
+    # showSubMatrix(img, 0, 0, 8)
     
-    Y_info, Cb_info, Cr_info = encoder(img)
+    Y, Cb, Cr = encoder(img)
     
-    imgRec = decoder(Y_info, Cb_info, Cr_info)
+    imgRec = decoder(Y, Cb, Cr)
     showImage(imgRec, None, "Reconstructed Image")
     
 if __name__ == "__main__":
     main()
-
