@@ -15,6 +15,17 @@ def showImage(img, cm, title="Imagem"):
     plt.show()
 
 
+def channels_to_img(R, G, B):
+    nl, nc = R.shape
+    img = np.zeros((nl, nc, 3), dtype=np.uint8)
+
+    img[:, :, 0] = R
+    img[:, :, 1] = G
+    img[:, :, 2] = B
+
+    return img
+
+
 def showSubMatrix(matrix, i, j, dim):
     nd = matrix.ndim
     
@@ -24,6 +35,7 @@ def showSubMatrix(matrix, i, j, dim):
         print(matrix[i:i+dim, j:j+dim, 0])
 
 
+def padding(img, block_size = 32):
     height, width, __ = img.shape
     
     pad_height = block_size - (height % block_size) if height % block_size != 0 else 0
