@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as clr
 import numpy as np
 import cv2
+from scipy.fftpack import dct,idct
 
 cm_red = clr.LinearSegmentedColormap.from_list("red", [(0, 0, 0), (1, 0, 0)], N=256)
 cm_green = clr.LinearSegmentedColormap.from_list("green", [(0, 0, 0), (0, 1, 0)], N=256)
@@ -16,6 +17,12 @@ def showImage(img, cm, title="Imagem"):
     plt.title(title)
     plt.show()
 
+def showImageDCT(img, cm, title="Imagem"):
+    plt.figure()
+    plt.imshow(np.log(abs(img)+0.0001), cmap=cm)
+    plt.axis('off')
+    plt.title(title)
+    plt.show()
 
 def channels_to_img(R, G, B):
     nl, nc = R.shape
@@ -103,7 +110,7 @@ def downsampling(Y, Cb, Cr, variant, interpolation):
             Cb_d = cv2.resize(Cb,None,fx = 0.5,fy = 1, interpolation=cv2.INTER_CUBIC)
             Cr_d = cv2.resize(Cr,None,fx = 0.5,fy = 1, interpolation=cv2.INTER_CUBIC)
         
-    return Y, Cb_d,Cr_d
+    return Y, Cb_d, Cr_d
 
 
 def upsampling(Y, Cb, Cr, variant, interpolation):
@@ -122,7 +129,14 @@ def upsampling(Y, Cb, Cr, variant, interpolation):
             Cb_d = cv2.resize(Cb,None,fx = 2,fy = 1, interpolation=cv2.INTER_CUBIC)
             Cr_d = cv2.resize(Cr,None,fx = 2,fy = 1, interpolation=cv2.INTER_CUBIC)
         
-    return Y, Cb_d,Cr_d
+    return Y, Cb_d, Cr_d
+
+def get_dct(X):
+    return dct(dct(X,norm="ortho").T,norm="ortho").T
+
+def get_idct(X):
+    return idct(idct(X,norm="ortho").T,norm="ortho").T
+
 
 # Encoder and Decoder
 def encoder(img):
@@ -148,27 +162,28 @@ def encoder(img):
     print("Cb shape before Downsampling: ", Cb.shape)
     print("Cd shape before Downsampling: ", Cr.shape)
     
-    '''
     print("\nVariant[4:2:2]\n")
     
     ######################LINEAR DOWNSAMPLING 4:2:2 #############################
     
-    Y, Cb_d, Cr_d = downsampling(Y, Cb, Cr, [4,2,2],"linear")
+    Y_d, Cb_d, Cr_d = downsampling(Y, Cb, Cr, [4,2,2],"linear")
     
-    showImage(Y, cm_grey, " Y (Downsampling (Linear) with [4:2:2])")
+    showImage(Y_d, cm_grey, " Y (Downsampling (Linear) with [4:2:2])")
     showImage(Cb_d, cm_grey, "Cb (Downsampling (Linear) with [4:2:2)")
     showImage(Cr_d, cm_grey, "Cr (Downsampling (Linear) with [4:2:2])")
     
     ######################CUBIC DOWNSAMPLING 4:2:2 #############################
     
-    showImage(Y, cm_grey, " Y (Downsampling (Cubic) with [4:2:2])")
+    Y_d, Cb_d, Cr_d = downsampling(Y, Cb, Cr, [4,2,2],"cubic")
+    
+    showImage(Y_d, cm_grey, " Y (Downsampling (Cubic) with [4:2:2])")
     showImage(Cb_d, cm_grey, "Cb (Downsampling (Cubic) with [4:2:2])")
     showImage(Cr_d, cm_grey, "Cr (Downsampling (cubic) with [4:2:2])")
     
     print("Cb shape after Downsampling([4:2:2]):", Cb_d.shape)
     print("Cd shape after Downsampling([4:2:2]):", Cr_d.shape)
+     
     '''
-    
     print("\nVariant[4:2:0]\n")
     
     ######################LINEAR DOWNSAMPLING 4:2:0 #############################
@@ -191,38 +206,61 @@ def encoder(img):
     print("Cd shape after Downsampling([4:2:2]):", Cr_d.shape)
     
     print("\n################################################")
+    
+    print("\n######################DCT#######################\n")
+    '''
+   
+    Y_dct = get_dct(Y_d)
+    Cb_dct = get_dct(Cb_d)
+    Cr_dct = get_dct(Cr_d)
+    
+    showImageDCT(Y_dct, cm_grey,"DCT IN Y")
+    showImageDCT(Cb_dct, cm_grey,"DCT IN CB_d")
+    showImageDCT(Cr_dct, cm_grey,"DCT IN Cr_d")
 
-    return Y, Cb, Cr
+    
+
+    return Y, Cb, Cr, Y_dct, Cb_dct, Cr_dct
 
 
-def decoder(Y, Cb, Cr):
-
+def decoder(Y, Cb, Cr, Y_dct, Cb_dct, Cr_dct):
+    
+    Y_idct = get_idct(Y_dct)
+    Cb_idct = get_idct(Cb_dct)
+    Cr_idct = get_idct(Cr_dct)
+    
+    showImageDCT(Y_idct, cm_grey,"IDCT IN Y")
+    showImageDCT(Cb_idct, cm_grey,"IDCT IN CB_d")
+    showImageDCT(Cr_idct, cm_grey,"IDCT IN Cr_d")
+    
     print("\n################ UPSAMPLING####################\n")
     
     print("Cb shape before Upsampling: ",Cb.shape)
     print("Cd shape before Upsampling: ",Cr.shape)
     
-    '''
+    
     print("\nVariant[4:2:2]\n")
     
     ######################LINEAR DOWNSAMPLING 4:2:2 #############################
     
-    Y, Cb_d, Cr_d = upsampling(Y, Cb, Cr, [4,2,2], "linear")
+    Y_d, Cb_d, Cr_d = upsampling(Y, Cb, Cr, [4,2,2], "linear")
     
-    showImage(Y, cm_grey, " Y (Upsampling (Linear) with [4:2:2])")
+    showImage(Y_d, cm_grey, " Y (Upsampling (Linear) with [4:2:2])")
     showImage(Cb_d, cm_grey, "Cb (Upsampling (Linear) with [4:2:2)")
     showImage(Cr_d, cm_grey, "Cr (Upsampling (Linear) with [4:2:2])")
     
     ######################CUBIC DOWNSAMPLING 4:2:2 #############################
     
-    showImage(Y, cm_grey, " Y (Upsampling (Cubic) with [4:2:2])")
+    Y_d, Cb_d, Cr_d = upsampling(Y, Cb, Cr, [4,2,2], "cubic") 
+    
+    showImage(Y_d, cm_grey, " Y (Upsampling (Cubic) with [4:2:2])")
     showImage(Cb_d, cm_grey, "Cb (Upsampling (Cubic) with [4:2:2])")
     showImage(Cr_d, cm_grey, "Cr (Upsampling (cubic) with [4:2:2])")
     
     print("Cb shape after Upsampling([4:2:2]):", Cb_d.shape)
     print("Cd shape after Upsampling([4:2:2]):", Cr_d.shape)
-    '''
     
+    '''
     print("\nVariant[4:2:0]\n")
     
     ######################LINEAR DOWNSAMPLING 4:2:0 #############################
@@ -243,9 +281,11 @@ def decoder(Y, Cb, Cr):
     
     print("Cb shape after Upsampling([4:2:0]):", Cb_d.shape)
     print("Cd shape after Upsampling([4:2:0]):", Cr_d.shape)
+    '''
     
     print("\n################################################")
-
+    
+    
 
     R, G, B = ycbcr_to_rgb(Y, Cb, Cr)
 
@@ -268,9 +308,9 @@ def main():
     
     # showSubMatrix(img, 0, 0, 8)
     
-    Y, Cb, Cr = encoder(img)
+    Y, Cb, Cr, Y_dct, Cb_dct, Cr_dct = encoder(img)
     
-    imgRec = decoder(Y, Cb, Cr)
+    imgRec = decoder(Y, Cb, Cr, Y_dct, Cb_dct, Cr_dct)
     showImage(imgRec, None, "Reconstructed Image")
     
 if __name__ == "__main__":
