@@ -176,27 +176,29 @@ def encoder(img,mode,factor):
     print(f"Cb shape after Downsampling({factor}):", Cb_d.shape)
     print(f"Cb shape after Downsampling({factor}):", Cr_d.shape)
    
-    '''
+
     Y_dct = get_dct(Y_d)
     Cb_dct = get_dct(Cb_d)
     Cr_dct = get_dct(Cr_d)
     
+    '''
     showImageDCT(Y_dct, cm_grey,"DCT IN Y")
     showImageDCT(Cb_dct, cm_grey,"DCT IN CB_d")
     showImageDCT(Cr_dct, cm_grey,"DCT IN Cr_d")
     '''
     
 
-    return Y, Cb, Cr, Y_d, Cb_d, Cr_d
+    return Y_dct, Cb_dct, Cr_dct
 
 
-def decoder(Y, Cb, Cr, Y_d ,Cb_d, Cr_d,mode,factor):
+def decoder(Y_dct ,Cb_dct, Cr_dct,mode,factor):
+    
+
+    Y_d = get_idct(Y_dct)
+    Cb_d = get_idct(Cb_dct)
+    Cr_d = get_idct(Cr_dct)
     
     '''
-    Y_idct = get_idct(Y_dct)
-    Cb_idct = get_idct(Cb_dct)
-    Cr_idct = get_idct(Cr_dct)
-    
     showImageDCT(Y_idct, cm_grey,"IDCT IN Y")
     showImageDCT(Cb_idct, cm_grey,"IDCT IN CB_d")
     showImageDCT(Cr_idct, cm_grey,"IDCT IN Cr_d")
@@ -212,14 +214,14 @@ def decoder(Y, Cb, Cr, Y_d ,Cb_d, Cr_d,mode,factor):
     
     ######################UPSAMPLING #############################
     
-    Y_d, Cb_d, Cr_d = upsampling(Y, Cb_d, Cr_d, factor,mode) 
+    Y, Cb, Cr = upsampling(Y_d, Cb_d, Cr_d, factor,mode) 
     
-    showImage(Y_d, cm_grey, f" Y (Upsampling ({mode}) with {factor})")
-    showImage(Cb_d, cm_grey, f"Cb (Upsampling ({mode}) with {factor})")
-    showImage(Cr_d, cm_grey, f"Cr (Upsampling ({mode}) with {factor})")
+    showImage(Y, cm_grey, f" Y (Upsampling ({mode}) with {factor})")
+    showImage(Cb, cm_grey, f"Cb (Upsampling ({mode}) with {factor})")
+    showImage(Cr, cm_grey, f"Cr (Upsampling ({mode}) with {factor})")
     
-    print(f"Cb shape after Upsampling({factor}):", Cb_d.shape)
-    print(f"Cd shape after Upsampling({factor}):", Cr_d.shape)
+    print(f"Cb shape after Upsampling({factor}):", Cb.shape)
+    print(f"Cd shape after Upsampling({factor}):", Cr.shape)
     
     print("\n################################################")
     
@@ -248,12 +250,12 @@ def main():
     mode = "linear"
     #mode = "cubic"
     
-    #factor = [4,2,2]
-    factor = [4,2,0]
+    factor = [4,2,2]
+    #factor = [4,2,0]
     
-    Y, Cb, Cr, Y_d, Cb_d, Cr_d = encoder(img,mode,factor)
+    Y_dct, Cb_dct, Cr_dct = encoder(img,mode,factor)
     
-    imgRec = decoder(Y, Cb, Cr, Y_d, Cb_d, Cr_d,mode,factor)
+    imgRec = decoder(Y_dct, Cb_dct, Cr_dct,mode,factor)
     showImage(imgRec, None, "Reconstructed Image")
     
 if __name__ == "__main__":
