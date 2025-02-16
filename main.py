@@ -137,6 +137,26 @@ def get_dct(X):
 def get_idct(X):
     return idct(idct(X,norm="ortho").T,norm="ortho").T
 
+def dct_by_block(channel,blockSize):
+    rows = channel.shape[0]
+    columns = channel.shape[1]
+    final_dct = np.zeros(channel.shape)
+    for i in range(0,rows,blockSize):
+        for j in range(0,columns,blockSize):
+            portion = channel[i:i+blockSize, j:j+blockSize]
+            final_dct[i:i+blockSize, j:j+blockSize] = get_dct(portion)
+    return final_dct
+
+def idct_by_block(channel,blockSize):
+    rows = channel.shape[0]
+    columns = channel.shape[1]
+    final_idct = np.zeros(channel.shape)
+    for i in range(0,rows,blockSize):
+        for j in range(0,columns,blockSize):
+            portion = channel[i:i+blockSize, j:j+blockSize]
+            final_idct[i:i+blockSize, j:j+blockSize] = get_idct(portion)
+    return final_idct
+
 
 # Encoder and Decoder
 def encoder(img,mode,factor):
@@ -176,33 +196,75 @@ def encoder(img,mode,factor):
     print(f"Cb shape after Downsampling({factor}):", Cb_d.shape)
     print(f"Cb shape after Downsampling({factor}):", Cr_d.shape)
    
-
+    
+   ###################### EX 7.1 #############################
     Y_dct = get_dct(Y_d)
     Cb_dct = get_dct(Cb_d)
     Cr_dct = get_dct(Cr_d)
     
-    '''
     showImageDCT(Y_dct, cm_grey,"DCT IN Y")
     showImageDCT(Cb_dct, cm_grey,"DCT IN CB_d")
     showImageDCT(Cr_dct, cm_grey,"DCT IN Cr_d")
-    '''
     
-
-    return Y_dct, Cb_dct, Cr_dct
-
-
-def decoder(Y_dct ,Cb_dct, Cr_dct,mode,factor):
+    ###################### EX 7.2 #############################
+    Y_dct_block8 = dct_by_block(Y_d, 8)
+    Cb_dct_block8 = dct_by_block(Cb_d, 8)
+    Cr_dct_block8 = dct_by_block(Cr_d, 8)
     
+    showImageDCT(Y_dct_block8, cm_grey,"DCT8 IN Y")
+    showImageDCT(Cb_dct_block8, cm_grey,"DCT8 IN CB_d")
+    showImageDCT(Cr_dct_block8, cm_grey,"DCT8 IN Cr_d")
+    
+    ###################### EX 7.3 #############################
+    Y_dct_block64 = dct_by_block(Y_d, 64)
+    Cb_dct_block64 = dct_by_block(Cb_d, 64)
+    Cr_dct_block64 = dct_by_block(Cr_d, 64)
+    
+    showImageDCT(Y_dct_block64, cm_grey,"DCT64 IN Y")
+    showImageDCT(Cb_dct_block64, cm_grey,"DCT64 IN CB_d")
+    showImageDCT(Cr_dct_block64, cm_grey,"DCT64 IN Cr_d")
+    
+    dct_dict = {'Y': Y_dct, 'Cb': Cb_dct, 'Cr': Cr_dct}
 
+    dct8_dict = {'Y': Y_dct_block8, 'Cb': Cb_dct_block8, 'Cr': Cr_dct_block8}
+
+    dct64_dict = {'Y': Y_dct_block64, 'Cb': Cb_dct_block64, 'Cr': Cr_dct_block64}
+
+    return dct_dict, dct8_dict, dct64_dict
+
+
+def decoder(dct_dict ,dct8_dict, dct64_dict,mode,factor):
+    Y_dct,Cb_dct,Cr_dct = dct_dict.values()
+    Y_dct8,Cb_dct8,Cr_dct8 = dct8_dict.values()
+    Y_dct64,Cb_dct64,Cr_dct64 = dct64_dict.values()
+    
+    
+    ###################### EX 7.1 #############################
     Y_d = get_idct(Y_dct)
     Cb_d = get_idct(Cb_dct)
     Cr_d = get_idct(Cr_dct)
     
-    '''
-    showImageDCT(Y_idct, cm_grey,"IDCT IN Y")
-    showImageDCT(Cb_idct, cm_grey,"IDCT IN CB_d")
-    showImageDCT(Cr_idct, cm_grey,"IDCT IN Cr_d")
-    '''
+    showImageDCT(Y_d, cm_grey,"IDCT IN Y")
+    showImageDCT(Cb_d, cm_grey,"IDCT IN CB_d")
+    showImageDCT(Cr_d, cm_grey,"IDCT IN Cr_d")
+    
+    ###################### EX 7.2 #############################
+    Y_d8 = idct_by_block(Y_dct8, 8)
+    Cb_d8 = idct_by_block(Cb_dct8, 8)
+    Cr_d8 = idct_by_block(Cr_dct8, 8)
+    
+    showImageDCT(Y_d8, cm_grey,"IDCT8 IN Y")
+    showImageDCT(Cb_d8, cm_grey,"IDCT8 IN CB_d")
+    showImageDCT(Cr_d8, cm_grey,"IDCT8 IN Cr_d")
+    
+    ###################### EX 7.3 #############################
+    Y_d64 = idct_by_block(Y_dct64, 64)
+    Cb_d64 = idct_by_block(Cb_dct64, 64)
+    Cr_d64 = idct_by_block(Cr_dct64, 64)
+    
+    showImageDCT(Y_d64, cm_grey,"IDCT64 IN Y")
+    showImageDCT(Cb_d64, cm_grey,"IDCT64 IN CB_d")
+    showImageDCT(Cr_d64, cm_grey,"IDCT64 IN Cr_d")
     
     print("\n################ UPSAMPLING####################\n")
     
@@ -253,9 +315,9 @@ def main():
     factor = [4,2,2]
     #factor = [4,2,0]
     
-    Y_dct, Cb_dct, Cr_dct = encoder(img,mode,factor)
+    dct_dict, dct8_dict, dct64_dict = encoder(img,mode,factor)
     
-    imgRec = decoder(Y_dct, Cb_dct, Cr_dct,mode,factor)
+    imgRec = decoder(dct_dict, dct8_dict, dct64_dict,mode,factor)
     showImage(imgRec, None, "Reconstructed Image")
     
 if __name__ == "__main__":
