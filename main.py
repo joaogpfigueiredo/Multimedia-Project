@@ -19,7 +19,7 @@ def showImage(img, cm, title="Imagem"):
 
 def showImageDCT(img, cm, title="Imagem"):
     plt.figure()
-    plt.imshow(np.log(abs(img)+0.0001), cmap=cm)
+    plt.imshow(np.log(np.abs(img)+0.0001), cmap=cm)
     plt.axis('off')
     plt.title(title)
     plt.show()
@@ -164,6 +164,7 @@ def encoder(img):
     
     print("\nVariant[4:2:2]\n")
     
+    '''
     ######################LINEAR DOWNSAMPLING 4:2:2 #############################
     
     Y_d, Cb_d, Cr_d = downsampling(Y, Cb, Cr, [4,2,2],"linear")
@@ -171,6 +172,8 @@ def encoder(img):
     showImage(Y_d, cm_grey, " Y (Downsampling (Linear) with [4:2:2])")
     showImage(Cb_d, cm_grey, "Cb (Downsampling (Linear) with [4:2:2)")
     showImage(Cr_d, cm_grey, "Cr (Downsampling (Linear) with [4:2:2])")
+    
+    '''
     
     ######################CUBIC DOWNSAMPLING 4:2:2 #############################
     
@@ -220,10 +223,10 @@ def encoder(img):
 
     
 
-    return Y, Cb, Cr, Y_dct, Cb_dct, Cr_dct
+    return Y, Cb, Cr, Y_dct, Cb_dct, Cr_dct, Cb_d, Cr_d
 
 
-def decoder(Y, Cb, Cr, Y_dct, Cb_dct, Cr_dct):
+def decoder(Y, Cb, Cr, Y_dct, Cb_dct, Cr_dct,Cb_d, Cr_d):
     
     Y_idct = get_idct(Y_dct)
     Cb_idct = get_idct(Cb_dct)
@@ -235,23 +238,25 @@ def decoder(Y, Cb, Cr, Y_dct, Cb_dct, Cr_dct):
     
     print("\n################ UPSAMPLING####################\n")
     
-    print("Cb shape before Upsampling: ",Cb.shape)
-    print("Cd shape before Upsampling: ",Cr.shape)
+    print("Cb shape before Upsampling: ",Cb_d.shape)
+    print("Cd shape before Upsampling: ",Cr_d.shape)
     
     
     print("\nVariant[4:2:2]\n")
     
+    '''
     ######################LINEAR DOWNSAMPLING 4:2:2 #############################
     
-    Y_d, Cb_d, Cr_d = upsampling(Y, Cb, Cr, [4,2,2], "linear")
+    Y_d, Cb_d, Cr_d = upsampling(Y, Cb_d, Cr_d, [4,2,2], "linear")
     
     showImage(Y_d, cm_grey, " Y (Upsampling (Linear) with [4:2:2])")
     showImage(Cb_d, cm_grey, "Cb (Upsampling (Linear) with [4:2:2)")
     showImage(Cr_d, cm_grey, "Cr (Upsampling (Linear) with [4:2:2])")
     
     ######################CUBIC DOWNSAMPLING 4:2:2 #############################
+    '''
     
-    Y_d, Cb_d, Cr_d = upsampling(Y, Cb, Cr, [4,2,2], "cubic") 
+    Y_d, Cb_d, Cr_d = upsampling(Y, Cb_d, Cr_d, [4,2,2], "cubic") 
     
     showImage(Y_d, cm_grey, " Y (Upsampling (Cubic) with [4:2:2])")
     showImage(Cb_d, cm_grey, "Cb (Upsampling (Cubic) with [4:2:2])")
@@ -308,9 +313,9 @@ def main():
     
     # showSubMatrix(img, 0, 0, 8)
     
-    Y, Cb, Cr, Y_dct, Cb_dct, Cr_dct = encoder(img)
+    Y, Cb, Cr, Y_dct, Cb_dct, Cr_dct, Cb_d, Cr_d = encoder(img)
     
-    imgRec = decoder(Y, Cb, Cr, Y_dct, Cb_dct, Cr_dct)
+    imgRec = decoder(Y, Cb, Cr, Y_dct, Cb_dct, Cr_dct, Cb_d, Cr_d)
     showImage(imgRec, None, "Reconstructed Image")
     
 if __name__ == "__main__":
