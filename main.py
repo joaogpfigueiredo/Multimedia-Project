@@ -39,6 +39,14 @@ def showSubMatrix(matrix, i, j, dim):
     nd = matrix.ndim
     
     if nd == 2:
+        print(np.round(matrix[i:i+dim, j:j+dim],3))
+    elif nd == 3:
+        print(np.round(matrix[i:i+dim, j:j+dim, 0],3))
+        
+def showSubMatrix_nr(matrix, i, j, dim):
+    nd = matrix.ndim
+    
+    if nd == 2:
         print(matrix[i:i+dim, j:j+dim])
     elif nd == 3:
         print(matrix[i:i+dim, j:j+dim, 0])
@@ -167,6 +175,9 @@ def encoder(img,mode,factor):
     showImage(R, cm_red, "Canal R")
     showImage(G, cm_green, "Canal G")
     showImage(B, cm_blue, "Canal B")
+    
+    print("Matriz R")
+    showSubMatrix(R,8,8,8)
 
     image_padded = padding(img)
 
@@ -175,6 +186,12 @@ def encoder(img,mode,factor):
     showImage(Y, cm_grey, "Canal Y")
     showImage(Cb, cm_grey, "Canal Cb")
     showImage(Cr, cm_grey, "Canal Cr")
+    
+    print("Matriz Y")
+    showSubMatrix(Y,8,8,8)
+    
+    print("\nMatriz Cb")
+    showSubMatrix(Cb,8,8,8)
     
     
     print("\n################ DOWNSAMPLING####################\n")
@@ -191,6 +208,9 @@ def encoder(img,mode,factor):
     showImage(Y_d, cm_grey, f"Y (Downsampling ({mode}) with {factor})")
     showImage(Cb_d, cm_grey, f"Cb (Downsampling ({mode}) with {factor})")
     showImage(Cr_d, cm_grey, f"Cr (Downsampling ({mode}) with {factor})")
+    
+    print("Matriz Cb")
+    showSubMatrix(Cb,8,8,8)
 
     
     print(f"Cb shape after Downsampling({factor}):", Cb_d.shape)
@@ -214,6 +234,9 @@ def encoder(img,mode,factor):
     showImageDCT(Y_dct_block8, cm_grey,"DCT8 IN Y")
     showImageDCT(Cb_dct_block8, cm_grey,"DCT8 IN CB_d")
     showImageDCT(Cr_dct_block8, cm_grey,"DCT8 IN Cr_d")
+    
+    print("Matriz Yb_DCT8X8")
+    showSubMatrix_nr(Y_dct_block8,8,8,8)
     
     ###################### EX 7.3 #############################
     Y_dct_block64 = dct_by_block(Y_d, 64)
@@ -294,12 +317,22 @@ def decoder(dct_dict ,dct8_dict, dct64_dict,mode,factor):
 
     original_img = remove_padding(img, img.shape)
     
+    '''
+    print("Imagem recuperada")
+    showSubMatrix(original_img,8,8,8)
+    '''
+    
     return original_img
 
 def main():
     filename = "imagens/airport.bmp"
     img = plt.imread(filename)
     showImage(img, None, "Original Image")
+    
+    '''
+    print("Imagem original")
+    showSubMatrix(img,8,8,8)
+    '''
     
     # print("Image type:", type(img))
     # print("Image shape:", img.shape)
