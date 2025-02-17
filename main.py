@@ -145,29 +145,33 @@ def get_dct(X):
 def get_idct(X):
     return idct(idct(X,norm="ortho").T,norm="ortho").T
 
-def dct_by_block(channel,blockSize):
+def dct_by_block(channel, blockSize):
     rows = channel.shape[0]
     columns = channel.shape[1]
     final_dct = np.zeros(channel.shape)
+    
     for i in range(0,rows,blockSize):
         for j in range(0,columns,blockSize):
             portion = channel[i:i+blockSize, j:j+blockSize]
             final_dct[i:i+blockSize, j:j+blockSize] = get_dct(portion)
+            
     return final_dct
 
-def idct_by_block(channel,blockSize):
+def idct_by_block(channel, blockSize):
     rows = channel.shape[0]
     columns = channel.shape[1]
     final_idct = np.zeros(channel.shape)
-    for i in range(0,rows,blockSize):
-        for j in range(0,columns,blockSize):
-            portion = channel[i:i+blockSize, j:j+blockSize]
-            final_idct[i:i+blockSize, j:j+blockSize] = get_idct(portion)
+    
+    for i in range(0, rows, blockSize):
+        for j in range(0, columns, blockSize):
+            portion = channel[i:i + blockSize, j:j+blockSize]
+            final_idct[i:i + blockSize, j:j+blockSize] = get_idct(portion)
+            
     return final_idct
 
 
 # Encoder and Decoder
-def encoder(img,mode,factor):
+def encoder(img, mode, factor):
     R = img[:, :, 0]
     G = img[:, :, 1]
     B = img[:, :, 2]
@@ -236,7 +240,7 @@ def encoder(img,mode,factor):
     showImageDCT(Cr_dct_block8, cm_grey,"DCT8 IN Cr_d")
     
     print("Matriz Yb_DCT8X8")
-    showSubMatrix_nr(Y_dct_block8,8,8,8)
+    showSubMatrix_nr(Y_dct_block8, 8, 8, 8)
     
     ###################### EX 7.3 #############################
     Y_dct_block64 = dct_by_block(Y_d, 64)
@@ -256,10 +260,10 @@ def encoder(img,mode,factor):
     return dct_dict, dct8_dict, dct64_dict
 
 
-def decoder(dct_dict ,dct8_dict, dct64_dict,mode,factor):
-    Y_dct,Cb_dct,Cr_dct = dct_dict.values()
-    Y_dct8,Cb_dct8,Cr_dct8 = dct8_dict.values()
-    Y_dct64,Cb_dct64,Cr_dct64 = dct64_dict.values()
+def decoder(original_img, dct_dict ,dct8_dict, dct64_dict, mode, factor):
+    Y_dct, Cb_dct, Cr_dct = dct_dict.values()
+    Y_dct8, Cb_dct8, Cr_dct8 = dct8_dict.values()
+    Y_dct64, Cb_dct64, Cr_dct64 = dct64_dict.values()
     
     
     ###################### EX 7.1 #############################
@@ -315,7 +319,7 @@ def decoder(dct_dict ,dct8_dict, dct64_dict,mode,factor):
 
     img = channels_to_img(R, G, B)
 
-    original_img = remove_padding(img, img.shape)
+    original_img = remove_padding(img, original_img.shape)
     
     '''
     print("Imagem recuperada")
@@ -345,12 +349,12 @@ def main():
     mode = "linear"
     #mode = "cubic"
     
-    factor = [4,2,2]
+    factor = [4, 2, 2]
     #factor = [4,2,0]
     
-    dct_dict, dct8_dict, dct64_dict = encoder(img,mode,factor)
+    dct_dict, dct8_dict, dct64_dict = encoder(img, mode, factor)
     
-    imgRec = decoder(dct_dict, dct8_dict, dct64_dict,mode,factor)
+    imgRec = decoder(img, dct_dict, dct8_dict, dct64_dict, mode, factor)
     showImage(imgRec, None, "Reconstructed Image")
     
 if __name__ == "__main__":
