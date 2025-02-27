@@ -211,24 +211,16 @@ def qualityCalc(quality):
 
     return qualityQ_Y, qualityQ_CbCr
 
-def quantization(Y, Cb, Cr, quality, blocks):
+def quantization(Y, Cb, Cr, quality, block_size):
     
-    qualityQ_Y, qualityQ_CbCr = qualityCalc(quality)
+    quality_Y, quality_CbCr = qualityCalc(quality)
 
-    length = Y.shape
-    for i in range(0, length[0], blocks):
-        for j in range(0, length[1], blocks):
-            slice_Y = Y[i:i + blocks, j:j + blocks]
-            Y[i:i + blocks, j:j + blocks] = slice_Y / qualityQ_Y                          
-
-    length = Cb.shape
-    for i in range(0, length[0], blocks):
-        for j in range(0, length[1], blocks):
-            slice_Cb = Cb[i:i + blocks, j:j + blocks]
-            Cb[i:i + blocks, j:j + blocks] = slice_Cb / qualityQ_CbCr
-
-            slice_Cr = Cr[i:i + blocks, j:j + blocks]
-            Cr[i:i + blocks, j:j + blocks] = slice_Cr / qualityQ_CbCr
+    for channel, q_factor in zip([Y, Cb, Cr], [quality_Y, quality_CbCr, quality_CbCr]):
+        h, w = channel.shape
+        for i in range(0, h, block_size):
+            for j in range(0, w, block_size):
+                # Slice // q_factor
+                channel[i:i + block_size, j:j + block_size] /= q_factor
 
     Y = np.round(Y).astype(int)
     Cb = np.round(Cb).astype(int)
@@ -242,27 +234,18 @@ def quantization(Y, Cb, Cr, quality, blocks):
 
     return dict_Q
     
-def iquantization(dict_Q, quality, blocks):
+def iquantization(dict_Q, quality, block_size):
     
     Y, Cb, Cr = dict_Q.values()
     
-    qualityQ_Y, qualityQ_CbCr = qualityCalc(quality)
+    quality_Y, quality_CbCr = qualityCalc(quality)
 
-    length = Y.shape
-    for i in range(0, length[0], blocks):
-        for j in range(0, length[1], blocks):
-            slice = Y[i:i + blocks, j:j + blocks]
-            Y[i:i + blocks, j:j + blocks] = slice * qualityQ_Y
-
-            
-    length = Cb.shape
-    for i in range(0, length[0], blocks):
-        for j in range(0, length[1], blocks):
-            slice = Cb[i:i + blocks, j:j + blocks]
-            Cb[i:i + blocks, j:j + blocks] = slice * qualityQ_CbCr
-
-            slice = Cr[i:i + blocks, j:j + blocks]
-            Cr[i:i + blocks, j:j + blocks] = slice * qualityQ_CbCr
+    for channel, q_factor in zip([Y, Cb, Cr], [quality_Y, quality_CbCr, quality_CbCr]):
+        h, w = channel.shape
+        for i in range(0, h, block_size):
+            for j in range(0, w, block_size):
+                # Slice * q_factor
+                channel[i:i + block_size, j:j + block_size] *= q_factor
 
     Y  = Y.astype(float)
     Cb = Cb.astype(float)
@@ -406,8 +389,8 @@ def decoder(original_img, dict_Q, mode, factor, quality):
     
     print("\n################ UPSAMPLING####################\n")
     
-    print("Cb shape before Upsampling: ",Cb_d8.shape)
-    print("Cd shape before Upsampling: ",Cr_d8.shape)
+    print("Cb shape before Upsampling: ", Cb_d8.shape)
+    print("Cd shape before Upsampling: ", Cr_d8.shape)
     
     
     print(f"\nVariant{factor}\n")
@@ -463,8 +446,15 @@ def main():
     factor = [4, 2, 2]
     #factor = [4,2,0]
     
-    dict_Q = encoder(img, mode, factor, 75)
+    # for quality in [10, 25, 50, 75, 100]:
+        
+    #     dict_Q = encoder(img, mode, factor, quality)
+        
+    #     imgRec = decoder(img, dict_Q, mode, factor, quality)
+    #     showImage(imgRec, None, "Reconstructed Image")
     
+    dict_Q = encoder(img, mode, factor, 75)
+        
     imgRec = decoder(img, dict_Q, mode, factor, 75)
     showImage(imgRec, None, "Reconstructed Image")
     
