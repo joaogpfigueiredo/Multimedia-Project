@@ -218,17 +218,17 @@ def quantization(Y, Cb, Cr, quality, blocks):
     length = Y.shape
     for i in range(0, length[0], blocks):
         for j in range(0, length[1], blocks):
-            slice_Y = Y[i:i+blocks, j:j+blocks]
-            Y[i:i+blocks, j:j+blocks] = slice_Y / qualityQ_Y                          
+            slice_Y = Y[i:i + blocks, j:j + blocks]
+            Y[i:i + blocks, j:j + blocks] = slice_Y / qualityQ_Y                          
 
     length = Cb.shape
     for i in range(0, length[0], blocks):
         for j in range(0, length[1], blocks):
-            slice_Cb = Cb[i:i+blocks, j:j+blocks]
-            Cb[i:i+blocks, j:j+blocks] = slice_Cb / qualityQ_CbCr
+            slice_Cb = Cb[i:i + blocks, j:j + blocks]
+            Cb[i:i + blocks, j:j + blocks] = slice_Cb / qualityQ_CbCr
 
-            slice_Cr = Cr[i:i+blocks, j:j+blocks]
-            Cr[i:i+blocks, j:j+blocks] = slice_Cr / qualityQ_CbCr
+            slice_Cr = Cr[i:i + blocks, j:j + blocks]
+            Cr[i:i + blocks, j:j + blocks] = slice_Cr / qualityQ_CbCr
 
     Y = np.round(Y).astype(int)
     Cb = np.round(Cb).astype(int)
@@ -238,27 +238,31 @@ def quantization(Y, Cb, Cr, quality, blocks):
     showImage(np.log(abs(Cb) + 0.0001), cm_grey, 'Cb Quantized')
     showImage(np.log(abs(Cr) + 0.0001), cm_grey, 'Cr Quantized')
 
-    return Y, Cb, Cr
+    dict_Q = {'Yb_Q': Y, 'Cbb_Q': Cb, 'Crb_Q': Cr}
+
+    return dict_Q
     
-def iquantization(Y, Cb, Cr, quality, blocks):
+def iquantization(dict_Q, quality, blocks):
+    
+    Y, Cb, Cr = dict_Q.values()
     
     qualityQ_Y, qualityQ_CbCr = qualityCalc(quality)
 
     length = Y.shape
     for i in range(0, length[0], blocks):
         for j in range(0, length[1], blocks):
-            slice = Y[i:i+blocks, j:j+blocks]
-            Y[i:i+blocks, j:j+blocks] = slice * qualityQ_Y
+            slice = Y[i:i + blocks, j:j + blocks]
+            Y[i:i + blocks, j:j + blocks] = slice * qualityQ_Y
 
             
     length = Cb.shape
     for i in range(0, length[0], blocks):
         for j in range(0, length[1], blocks):
-            slice = Cb[i:i+blocks, j:j+blocks]
-            Cb[i:i+blocks, j:j+blocks] = slice * qualityQ_CbCr
+            slice = Cb[i:i + blocks, j:j + blocks]
+            Cb[i:i + blocks, j:j + blocks] = slice * qualityQ_CbCr
 
-            slice = Cr[i:i+blocks, j:j+blocks]
-            Cr[i:i+blocks, j:j+blocks] = slice * qualityQ_CbCr
+            slice = Cr[i:i + blocks, j:j + blocks]
+            Cr[i:i + blocks, j:j + blocks] = slice * qualityQ_CbCr
 
     Y  = Y.astype(float)
     Cb = Cb.astype(float)
@@ -267,8 +271,10 @@ def iquantization(Y, Cb, Cr, quality, blocks):
     showImage(np.log(abs(Y) + 0.0001), cm_grey, 'Y Iquantization')
     showImage(np.log(abs(Cb) + 0.0001), cm_grey, 'Cb Iquantization')
     showImage(np.log(abs(Cr) + 0.0001), cm_grey, 'Cr Iquantization')
+    
+    dct_dict = {'Y_dct': Y, 'Cb_dct': Cb, 'Cr_dct': Cr}
 
-    return Y, Cb, Cr
+    return dct_dict
 
 # Encoder and Decoder
 def encoder(img, mode, factor, quality):
@@ -320,7 +326,6 @@ def encoder(img, mode, factor, quality):
     print(f"Cb shape after Downsampling({factor}):", Cb_d.shape)
     print(f"Cb shape after Downsampling({factor}):", Cr_d.shape)
    
-    
    ###################### EX 7.1 #############################
     Y_dct = get_dct(Y_d)
     Cb_dct = get_dct(Cb_d)
@@ -342,6 +347,7 @@ def encoder(img, mode, factor, quality):
     print("Matriz Yb_DCT8X8")
     showSubMatrix_nr(Y_dct_block8, 8, 8, 8)
     
+    '''
     ###################### EX 7.3 #############################
     Y_dct_block64 = dct_by_block(Y_d, 64)
     Cb_dct_block64 = dct_by_block(Cb_d, 64)
@@ -350,25 +356,24 @@ def encoder(img, mode, factor, quality):
     showImageDCT(Y_dct_block64, cm_grey,"DCT64 IN Y")
     showImageDCT(Cb_dct_block64, cm_grey,"DCT64 IN Cb_d")
     showImageDCT(Cr_dct_block64, cm_grey,"DCT64 IN Cr_d")
+    '''
     
-    dct_dict = {'Y': Y_dct, 'Cb': Cb_dct, 'Cr': Cr_dct}
-
     dct8_dict = {'Y': Y_dct_block8, 'Cb': Cb_dct_block8, 'Cr': Cr_dct_block8}
-
-    dct64_dict = {'Y': Y_dct_block64, 'Cb': Cb_dct_block64, 'Cr': Cr_dct_block64}
     
-    Y, Cb, Cr = quantization(Y_dct_block8, Cb_dct_block8, Cr_dct_block8, quality, 8)
+    dict_Q = quantization(dct8_dict['Y'], dct8_dict['Cb'], dct8_dict['Cr'], quality, 8)
+    showSubMatrix(dict_Q['Yb_Q'], 8, 8, 8)
 
-    return dct_dict, dct8_dict, dct64_dict
+    return dict_Q
 
 
-def decoder(original_img, dct_dict ,dct8_dict, dct64_dict, mode, factor, quality):
-    Y_dct, Cb_dct, Cr_dct = dct_dict.values()
+def decoder(original_img, dict_Q, mode, factor, quality):
+    
+    ###################### EX 8.2 #############################
+    dct8_dict = iquantization(dict_Q, quality, 8)
     Y_dct8, Cb_dct8, Cr_dct8 = dct8_dict.values()
-    Y_dct64, Cb_dct64, Cr_dct64 = dct64_dict.values()
+    showSubMatrix(Y_dct8, 8, 8, 8)
     
-    Y, Cb, Cr = iquantization(Y_dct8, Cb_dct8, Cr_dct8, quality, 8)
-        
+    '''
     ###################### EX 7.1 #############################
     Y_d = get_idct(Y_dct)
     Cb_d = get_idct(Cb_dct)
@@ -377,6 +382,7 @@ def decoder(original_img, dct_dict ,dct8_dict, dct64_dict, mode, factor, quality
     showImageDCT(Y_d, cm_grey,"IDCT IN Y")
     showImageDCT(Cb_d, cm_grey,"IDCT IN Cb_d")
     showImageDCT(Cr_d, cm_grey,"IDCT IN Cr_d")
+    '''
     
     ###################### EX 7.2 #############################
     Y_d8 = idct_by_block(Y_dct8, 8)
@@ -387,6 +393,7 @@ def decoder(original_img, dct_dict ,dct8_dict, dct64_dict, mode, factor, quality
     showImageDCT(Cb_d8, cm_grey,"IDCT8 IN Cb_d")
     showImageDCT(Cr_d8, cm_grey,"IDCT8 IN Cr_d")
     
+    '''
     ###################### EX 7.3 #############################
     Y_d64 = idct_by_block(Y_dct64, 64)
     Cb_d64 = idct_by_block(Cb_dct64, 64)
@@ -395,18 +402,19 @@ def decoder(original_img, dct_dict ,dct8_dict, dct64_dict, mode, factor, quality
     showImageDCT(Y_d64, cm_grey,"IDCT64 IN Y")
     showImageDCT(Cb_d64, cm_grey,"IDCT64 IN Cb_d")
     showImageDCT(Cr_d64, cm_grey,"IDCT64 IN Cr_d")
+    '''
     
     print("\n################ UPSAMPLING####################\n")
     
-    print("Cb shape before Upsampling: ",Cb_d.shape)
-    print("Cd shape before Upsampling: ",Cr_d.shape)
+    print("Cb shape before Upsampling: ",Cb_d8.shape)
+    print("Cd shape before Upsampling: ",Cr_d8.shape)
     
     
     print(f"\nVariant{factor}\n")
     
     ######################UPSAMPLING #############################
     
-    Y, Cb, Cr = upsampling(Y_d, Cb_d, Cr_d, factor,mode) 
+    Y, Cb, Cr = upsampling(Y_d8, Cb_d8, Cr_d8, factor,mode) 
     
     showImage(Y, cm_grey, f" Y (Upsampling ({mode}) with {factor})")
     showImage(Cb, cm_grey, f"Cb (Upsampling ({mode}) with {factor})")
@@ -455,9 +463,9 @@ def main():
     factor = [4, 2, 2]
     #factor = [4,2,0]
     
-    dct_dict, dct8_dict, dct64_dict = encoder(img, mode, factor, 75)
+    dict_Q = encoder(img, mode, factor, 75)
     
-    imgRec = decoder(img, dct_dict, dct8_dict, dct64_dict, mode, factor, 75)
+    imgRec = decoder(img, dict_Q, mode, factor, 75)
     showImage(imgRec, None, "Reconstructed Image")
     
 if __name__ == "__main__":
