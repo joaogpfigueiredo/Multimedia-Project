@@ -276,6 +276,46 @@ def iquantization(dict_Q, quality, blocks):
 
     return dct_dict
 
+def DPCM(Y, Cb, Cr, cmGray, Bsize):
+    Y_dpcm = np.copy(Y)
+    Cb_dpcm = np.copy(Cb)
+    Cr_dpcm = np.copy(Cr)
+
+    for i in range(int(Y.shape[0] / Bsize)):
+        for j in range(int(Y.shape[1] / Bsize)):
+            if (i != 0):
+                if (j != 0):
+                    Y_dpcm[i * Bsize, j * Bsize] = Y[i * Bsize, j * Bsize] - Y[i * Bsize, j * Bsize - Bsize]
+                else:
+                    Y_dpcm[i * Bsize, j * Bsize] = Y[i * Bsize, j * Bsize] - Y[i * Bsize - Bsize, int(Y.shape[1]) - Bsize]
+            else:
+                if (j != 0):
+                    Y_dpcm[i * Bsize, j * Bsize] = Y[i * Bsize, j * Bsize] - Y[i * Bsize, j * Bsize - Bsize]
+
+    for i in range(int(Cb.shape[0] / Bsize)):
+        for j in range(int(Cb.shape[1] / Bsize)):
+            if (i != 0):
+                if (j != 0):
+                    Cb_dpcm[i * Bsize, j * Bsize] = Cb[i * Bsize, j * Bsize] - Cb[i * Bsize, j * Bsize - Bsize]
+                    Cr_dpcm[i * Bsize, j * Bsize] = Cr[i * Bsize, j * Bsize] - Cr[i * Bsize, j * Bsize - Bsize]
+                else:
+                    Cb_dpcm[i * Bsize, j * Bsize] = Cb[i * Bsize, j * Bsize] - Cb[i * Bsize - Bsize, int(Cb.shape[1]) - Bsize]
+                    Cr_dpcm[i * Bsize, j * Bsize] = Cr[i * Bsize, j * Bsize] - Cr[i * Bsize - Bsize, int(Cb.shape[1]) - Bsize]
+            else:
+                if (j != 0):
+                    Cb_dpcm[i * Bsize, j * Bsize] = Cb[i * Bsize, j * Bsize] - Cb[i * Bsize, j * Bsize - Bsize]
+                    Cr_dpcm[i * Bsize, j * Bsize] = Cr[i * Bsize, j * Bsize] - Cr[i * Bsize, j * Bsize - Bsize]
+
+    quantLogY = np.log(np.abs(Y_dpcm) + 0.0001)
+    quantLogCb = np.log(np.abs(Cb_dpcm) + 0.0001)
+    quantLogCr = np.log(np.abs(Cr_dpcm) + 0.0001)
+
+    #showImg(quantLogY, "Yb_DPCM", cmGray)
+    #showImg(quantLogCb,"Cbb_DPCM", cmGray)
+    #showImg(quantLogCr, "Crb_DPCM", cmGray)
+
+    return Y_dpcm, Cb_dpcm, Cr_dpcm
+
 # Encoder and Decoder
 def encoder(img, mode, factor, quality):
     R = img[:, :, 0]
