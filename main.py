@@ -211,24 +211,16 @@ def qualityCalc(quality):
 
     return qualityQ_Y, qualityQ_CbCr
 
-def quantization(Y, Cb, Cr, quality, blocks):
+def quantization(Y, Cb, Cr, quality, block_size):
     
-    qualityQ_Y, qualityQ_CbCr = qualityCalc(quality)
+    quality_Y, quality_CbCr = qualityCalc(quality)
 
-    length = Y.shape
-    for i in range(0, length[0], blocks):
-        for j in range(0, length[1], blocks):
-            slice_Y = Y[i:i + blocks, j:j + blocks]
-            Y[i:i + blocks, j:j + blocks] = slice_Y / qualityQ_Y                          
-
-    length = Cb.shape
-    for i in range(0, length[0], blocks):
-        for j in range(0, length[1], blocks):
-            slice_Cb = Cb[i:i + blocks, j:j + blocks]
-            Cb[i:i + blocks, j:j + blocks] = slice_Cb / qualityQ_CbCr
-
-            slice_Cr = Cr[i:i + blocks, j:j + blocks]
-            Cr[i:i + blocks, j:j + blocks] = slice_Cr / qualityQ_CbCr
+    for channel, q_factor in zip([Y, Cb, Cr], [quality_Y, quality_CbCr, quality_CbCr]):
+        h, w = channel.shape
+        for i in range(0, h, block_size):
+            for j in range(0, w, block_size):
+                # Slice // q_factor
+                channel[i:i + block_size, j:j + block_size] /= q_factor
 
     Y = np.round(Y).astype(int)
     Cb = np.round(Cb).astype(int)
@@ -242,27 +234,18 @@ def quantization(Y, Cb, Cr, quality, blocks):
 
     return dict_Q
     
-def iquantization(dict_Q, quality, blocks):
+def iquantization(dict_Q, quality, block_size):
     
     Y, Cb, Cr = dict_Q.values()
     
-    qualityQ_Y, qualityQ_CbCr = qualityCalc(quality)
+    quality_Y, quality_CbCr = qualityCalc(quality)
 
-    length = Y.shape
-    for i in range(0, length[0], blocks):
-        for j in range(0, length[1], blocks):
-            slice = Y[i:i + blocks, j:j + blocks]
-            Y[i:i + blocks, j:j + blocks] = slice * qualityQ_Y
-
-            
-    length = Cb.shape
-    for i in range(0, length[0], blocks):
-        for j in range(0, length[1], blocks):
-            slice = Cb[i:i + blocks, j:j + blocks]
-            Cb[i:i + blocks, j:j + blocks] = slice * qualityQ_CbCr
-
-            slice = Cr[i:i + blocks, j:j + blocks]
-            Cr[i:i + blocks, j:j + blocks] = slice * qualityQ_CbCr
+    for channel, q_factor in zip([Y, Cb, Cr], [quality_Y, quality_CbCr, quality_CbCr]):
+        h, w = channel.shape
+        for i in range(0, h, block_size):
+            for j in range(0, w, block_size):
+                # Slice * q_factor
+                channel[i:i + block_size, j:j + block_size] *= q_factor
 
     Y  = Y.astype(float)
     Cb = Cb.astype(float)
@@ -276,45 +259,76 @@ def iquantization(dict_Q, quality, blocks):
 
     return dct_dict
 
-def DPCM(Y, Cb, Cr, cmGray, Bsize):
+
+# Ex 9
+def DPCM(Y, Cb, Cr, Bsize):
     Y_dpcm = np.copy(Y)
     Cb_dpcm = np.copy(Cb)
     Cr_dpcm = np.copy(Cr)
 
-    for i in range(int(Y.shape[0] / Bsize)):
-        for j in range(int(Y.shape[1] / Bsize)):
-            if (i != 0):
+    heigth, width = Y.shape
+    for i in range(int(heigth / Bsize)):
+        for j in range(int(width / Bsize)):
+            if (i != 0 or j != 0):
                 if (j != 0):
-                    Y_dpcm[i * Bsize, j * Bsize] = Y[i * Bsize, j * Bsize] - Y[i * Bsize, j * Bsize - Bsize]
+                    Y_dpcm[i * Bsize, j * Bsize] = Y[i * Bsize, j * Bsize] - Y[i * Bsize, (j - 1) * Bsize]
                 else:
-                    Y_dpcm[i * Bsize, j * Bsize] = Y[i * Bsize, j * Bsize] - Y[i * Bsize - Bsize, int(Y.shape[1]) - Bsize]
-            else:
-                if (j != 0):
-                    Y_dpcm[i * Bsize, j * Bsize] = Y[i * Bsize, j * Bsize] - Y[i * Bsize, j * Bsize - Bsize]
+                    Y_dpcm[i * Bsize, j * Bsize] = Y[i * Bsize, j * Bsize] - Y[(i - 1) * Bsize, int(Y.shape[1]) - Bsize]
 
-    for i in range(int(Cb.shape[0] / Bsize)):
-        for j in range(int(Cb.shape[1] / Bsize)):
-            if (i != 0):
+    heigth, width = Cb.shape
+    for i in range(int(heigth / Bsize)):
+        for j in range(int(width / Bsize)):
+            if (i != 0 or j != 0):
                 if (j != 0):
-                    Cb_dpcm[i * Bsize, j * Bsize] = Cb[i * Bsize, j * Bsize] - Cb[i * Bsize, j * Bsize - Bsize]
-                    Cr_dpcm[i * Bsize, j * Bsize] = Cr[i * Bsize, j * Bsize] - Cr[i * Bsize, j * Bsize - Bsize]
+                    Cb_dpcm[i * Bsize, j * Bsize] = Cb[i * Bsize, j * Bsize] - Cb[i * Bsize, (j - 1) * Bsize]
+                    Cr_dpcm[i * Bsize, j * Bsize] = Cr[i * Bsize, j * Bsize] - Cr[i * Bsize, (j - 1) * Bsize]
                 else:
-                    Cb_dpcm[i * Bsize, j * Bsize] = Cb[i * Bsize, j * Bsize] - Cb[i * Bsize - Bsize, int(Cb.shape[1]) - Bsize]
-                    Cr_dpcm[i * Bsize, j * Bsize] = Cr[i * Bsize, j * Bsize] - Cr[i * Bsize - Bsize, int(Cb.shape[1]) - Bsize]
-            else:
-                if (j != 0):
-                    Cb_dpcm[i * Bsize, j * Bsize] = Cb[i * Bsize, j * Bsize] - Cb[i * Bsize, j * Bsize - Bsize]
-                    Cr_dpcm[i * Bsize, j * Bsize] = Cr[i * Bsize, j * Bsize] - Cr[i * Bsize, j * Bsize - Bsize]
+                    Cb_dpcm[i * Bsize, j * Bsize] = Cb[i * Bsize, j * Bsize] - Cb[(i - 1) * Bsize, int(Cb.shape[1]) - Bsize]
+                    Cr_dpcm[i * Bsize, j * Bsize] = Cr[i * Bsize, j * Bsize] - Cr[(i - 1) * Bsize, int(Cb.shape[1]) - Bsize]
 
     quantLogY = np.log(np.abs(Y_dpcm) + 0.0001)
     quantLogCb = np.log(np.abs(Cb_dpcm) + 0.0001)
     quantLogCr = np.log(np.abs(Cr_dpcm) + 0.0001)
 
-    #showImg(quantLogY, "Yb_DPCM", cmGray)
-    #showImg(quantLogCb,"Cbb_DPCM", cmGray)
-    #showImg(quantLogCr, "Crb_DPCM", cmGray)
+    showImage(quantLogY, cm_grey, "Yb_DPCM")
+    showImage(quantLogCb, cm_grey, "Cbb_DPCM")
+    showImage(quantLogCr, cm_grey, "Crb_DPCM")
 
     return Y_dpcm, Cb_dpcm, Cr_dpcm
+
+def reverse_DPCM(Y_dpcm, Cb_dpcm, Cr_dpcm, Bsize):
+    Y_qdct = np.copy(Y_dpcm)
+    Cb_qdct = np.copy(Cb_dpcm)
+    Cr_qdct = np.copy(Cr_dpcm)
+
+    heigth, width = Y_dpcm.shape
+    for i in range(int(heigth / Bsize)):
+        for j in range(int(width / Bsize)):
+            if (i != 0 or j != 0):
+                if (j != 0):
+                    Y_qdct[i * Bsize, j * Bsize] = Y_qdct[i * Bsize, (j - 1) * Bsize] + Y_dpcm[i * Bsize, j * Bsize]
+                else:
+                    Y_qdct[i * Bsize, j * Bsize] = Y_qdct[(i - 1) * Bsize, int(Y_dpcm.shape[1]) - Bsize] + Y_dpcm[i * Bsize, j * Bsize]
+
+
+    heigth, width = Cb_dpcm.shape
+    for i in range(int(heigth / Bsize)):
+        for j in range(int(width / Bsize)):
+            if (i != 0 or j != 0):
+                if (j != 0):
+                    Cb_qdct[i * Bsize, j * Bsize] = Cb_qdct[i * Bsize, (j - 1) * Bsize] + Cb_dpcm[i * Bsize, j * Bsize]
+                    Cr_qdct[i * Bsize, j * Bsize] = Cr_qdct[i * Bsize, (j - 1) * Bsize] + Cr_dpcm[i * Bsize, j * Bsize]
+                else:
+                    Cb_qdct[i * Bsize, j * Bsize] = Cb_qdct[(i - 1) * Bsize, int(Cb_dpcm.shape[1]) - Bsize] + Cb_dpcm[i * Bsize, j * Bsize]
+                    Cr_qdct[i * Bsize, j * Bsize] = Cr_qdct[(i - 1) * Bsize, int(Cb_dpcm.shape[1]) - Bsize] + Cr_dpcm[i * Bsize, j * Bsize]
+    
+    showImage(np.log(np.abs(Y_qdct) + 0.0001), cm_grey, "Yb_Q")
+    showImage(np.log(np.abs(Cb_qdct) + 0.0001), cm_grey, "Cbb_Q")
+    showImage(np.log(np.abs(Cr_qdct) + 0.0001), cm_grey, "Crb_Q")
+
+    dict_Q = {'Yb_Q': Y_qdct, 'Cbb_Q': Cb_qdct, 'Crb_Q': Cr_qdct}
+
+    return dict_Q
 
 # Encoder and Decoder
 def encoder(img, mode, factor, quality):
@@ -400,17 +414,34 @@ def encoder(img, mode, factor, quality):
     
     dct8_dict = {'Y': Y_dct_block8, 'Cb': Cb_dct_block8, 'Cr': Cr_dct_block8}
     
+    
+    ###################### EX 8.1 #############################
     dict_Q = quantization(dct8_dict['Y'], dct8_dict['Cb'], dct8_dict['Cr'], quality, 8)
     showSubMatrix(dict_Q['Yb_Q'], 8, 8, 8)
+    
+    
+    ###################### EX 9.1 #############################
+    Y_dpcm, Cb_dpcm, Cr_dpcm = DPCM(dict_Q['Yb_Q'], dict_Q['Cbb_Q'], dict_Q['Crb_Q'], 8)
+    print("Matriz DPCM")
+    showSubMatrix(Y_dpcm, 8, 8, 8)
+    
+    dict_DPCM = {'Y_dpcm': Y_dpcm, 'Cb_dpcm': Cb_dpcm, 'Cr_dpcm': Cr_dpcm}
 
-    return dict_Q
+    return dict_DPCM, Y
 
 
-def decoder(original_img, dict_Q, mode, factor, quality):
+def decoder(original_img, dict_DPCM, mode, factor, quality):
+    
+    ###################### EX 9.2 #############################
+    Y_dpcm, Cb_dpcm, Cr_dpcm = dict_DPCM.values()
+    dict_Q = reverse_DPCM(Y_dpcm, Cb_dpcm, Cr_dpcm, 8)
+    print("Matriz Yb_iDCPM")
+    showSubMatrix(dict_Q['Yb_Q'], 8, 8, 8)
     
     ###################### EX 8.2 #############################
     dct8_dict = iquantization(dict_Q, quality, 8)
     Y_dct8, Cb_dct8, Cr_dct8 = dct8_dict.values()
+    print("Matriz Yb_iQ")
     showSubMatrix(Y_dct8, 8, 8, 8)
     
     '''
@@ -433,6 +464,9 @@ def decoder(original_img, dict_Q, mode, factor, quality):
     showImageDCT(Cb_d8, cm_grey,"IDCT8 IN Cb_d")
     showImageDCT(Cr_d8, cm_grey,"IDCT8 IN Cr_d")
     
+    print("Matriz Y_iDCT8x8")
+    showSubMatrix(Y_d8,8,8,8)
+    
     '''
     ###################### EX 7.3 #############################
     Y_d64 = idct_by_block(Y_dct64, 64)
@@ -446,8 +480,8 @@ def decoder(original_img, dict_Q, mode, factor, quality):
     
     print("\n################ UPSAMPLING####################\n")
     
-    print("Cb shape before Upsampling: ",Cb_d8.shape)
-    print("Cd shape before Upsampling: ",Cr_d8.shape)
+    print("Cb shape before Upsampling: ", Cb_d8.shape)
+    print("Cd shape before Upsampling: ", Cr_d8.shape)
     
     
     print(f"\nVariant{factor}\n")
@@ -471,13 +505,37 @@ def decoder(original_img, dict_Q, mode, factor, quality):
     img = channels_to_img(R, G, B)
 
     original_img = remove_padding(img, original_img.shape)
-    
+        
     '''
     print("Imagem recuperada")
     showSubMatrix(original_img,8,8,8)
     '''
     
-    return original_img
+    return original_img, Y
+
+def showDiff(original_channel, rebuilt_channel):
+
+    diff = abs(original_channel - rebuilt_channel)
+
+    print("AVG_diff: ", np.mean(diff))
+    print("Max_diff: ", np.max(diff))
+    
+    showImage(diff, cm_grey, 'Diff')
+    
+def stats(img,img_rec):
+        
+        io = img.astype(np.float32)
+        ir = img_rec.astype(np.float32)
+        shape  = np.shape(img)
+    
+        MSE = np.sum(pow(io - ir, 2))/(int(shape[0]) * int(shape[1]))
+        RMSE = np.sqrt(MSE)
+        
+        P = np.sum(pow(io, 2))/(int(shape[0]) * int(shape[1]))
+        SNR = np.log10(P/MSE) * 10
+        PSNR = np.log10(pow(np.max(io), 2) / MSE) * 10
+
+        return MSE, RMSE, SNR, PSNR
 
 def main():
     filename = "imagens/airport.bmp"
@@ -503,10 +561,23 @@ def main():
     factor = [4, 2, 2]
     #factor = [4,2,0]
     
-    dict_Q = encoder(img, mode, factor, 75)
+    # for quality in [10, 25, 50, 75, 100]:
+        
+    #     dict_Q = encoder(img, mode, factor, quality)
+        
+    #     imgRec = decoder(img, dict_Q, mode, factor, quality)
+    #     showImage(imgRec, None, "Reconstructed Image")
     
-    imgRec = decoder(img, dict_Q, mode, factor, 75)
+    dict_Q, Y_org = encoder(img, mode, factor, 75)
+        
+    imgRec, Y_rec = decoder(img, dict_Q, mode, factor, 75)
     showImage(imgRec, None, "Reconstructed Image")
+    
+    showDiff(Y_org,Y_rec)
+    
+    MSE, RMSE, SNR, PSNR = stats(img, imgRec)
+    print("\n-- STATS --")
+    print(f"MSE = {MSE}\nRMSE = {RMSE}\nSNR = {SNR}\nPSNR = {PSNR}",)
     
 if __name__ == "__main__":
     main()
