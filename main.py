@@ -202,12 +202,14 @@ def qualityCalc(quality):
         qualityQ_Y = matrix_ones
         qualityQ_CbCr = matrix_ones
     else:
-        qualityQ_Y = quantization_y * scaleFactor
-        qualityQ_CbCr = quantization_cbcr * scaleFactor
+        qualityQ_Y = np.round(quantization_y * scaleFactor)
+        qualityQ_CbCr = np.round(quantization_cbcr * scaleFactor)
 
 
     qualityQ_Y = np.clip(qualityQ_Y, 1, 255).astype(np.uint8)
     qualityQ_CbCr = np.clip(qualityQ_CbCr, 1, 255).astype(np.uint8)
+    
+    print("QY",qualityQ_Y)
 
     return qualityQ_Y, qualityQ_CbCr
 
@@ -219,7 +221,6 @@ def quantization(Y, Cb, Cr, quality, block_size):
         h, w = channel.shape
         for i in range(0, h, block_size):
             for j in range(0, w, block_size):
-                # Slice // q_factor
                 channel[i:i + block_size, j:j + block_size] /= q_factor
 
     Y = np.round(Y).astype(int)
@@ -244,7 +245,6 @@ def iquantization(dict_Q, quality, block_size):
         h, w = channel.shape
         for i in range(0, h, block_size):
             for j in range(0, w, block_size):
-                # Slice * q_factor
                 channel[i:i + block_size, j:j + block_size] *= q_factor
 
     Y  = Y.astype(float)
@@ -401,7 +401,7 @@ def encoder(img, mode, factor, quality):
     print("Matriz Yb_DCT8X8")
     showSubMatrix_nr(Y_dct_block8, 8, 8, 8)
     
-    '''
+    
     ###################### EX 7.3 #############################
     Y_dct_block64 = dct_by_block(Y_d, 64)
     Cb_dct_block64 = dct_by_block(Cb_d, 64)
@@ -410,7 +410,7 @@ def encoder(img, mode, factor, quality):
     showImageDCT(Y_dct_block64, cm_grey,"DCT64 IN Y")
     showImageDCT(Cb_dct_block64, cm_grey,"DCT64 IN Cb_d")
     showImageDCT(Cr_dct_block64, cm_grey,"DCT64 IN Cr_d")
-    '''
+    
     
     dct8_dict = {'Y': Y_dct_block8, 'Cb': Cb_dct_block8, 'Cr': Cr_dct_block8}
     
@@ -480,8 +480,8 @@ def decoder(original_img, dict_DPCM, mode, factor, quality):
     
     print("\n################ UPSAMPLING####################\n")
     
-    print("Cb shape before Upsampling: ", Cb_d8.shape)
-    print("Cd shape before Upsampling: ", Cr_d8.shape)
+    #print("Cb shape before Upsampling: ", Cb_d8.shape)
+    #print("Cd shape before Upsampling: ", Cr_d8.shape)
     
     
     print(f"\nVariant{factor}\n")
@@ -490,17 +490,23 @@ def decoder(original_img, dict_DPCM, mode, factor, quality):
     
     Y, Cb, Cr = upsampling(Y_d8, Cb_d8, Cr_d8, factor,mode) 
     
+    print("Matriz Cb_UP")
+    showSubMatrix(Cb,8,8,8)
+    
     showImage(Y, cm_grey, f" Y (Upsampling ({mode}) with {factor})")
     showImage(Cb, cm_grey, f"Cb (Upsampling ({mode}) with {factor})")
     showImage(Cr, cm_grey, f"Cr (Upsampling ({mode}) with {factor})")
     
-    print(f"Cb shape after Upsampling({factor}):", Cb.shape)
-    print(f"Cd shape after Upsampling({factor}):", Cr.shape)
+   # print(f"Cb shape after Upsampling({factor}):", Cb.shape)
+    #print(f"Cd shape after Upsampling({factor}):", Cr.shape)
     
     print("\n################################################")
     
 
     R, G, B = ycbcr_to_rgb(Y, Cb, Cr)
+    
+    print("R_decoded")
+    showSubMatrix(R, 8,8,8)
 
     img = channels_to_img(R, G, B)
 
@@ -528,12 +534,12 @@ def stats(img,img_rec):
         ir = img_rec.astype(np.float32)
         shape  = np.shape(img)
     
-        MSE = np.sum((io - ir)*(io-ir))/(int(shape[0]) * int(shape[1]))
+        MSE = np.sum((io - ir)**2)/(int(shape[0]) * int(shape[1]))
         RMSE = np.sqrt(MSE)
         
-        P = np.sum(io*io)/(int(shape[0]) * int(shape[1]))
+        P = np.sum(io**2)/(int(shape[0]) * int(shape[1]))
         SNR = np.log10(P/MSE) * 10
-        PSNR = np.log10(np.max(io)*np.max(io) / MSE) * 10
+        PSNR = np.log10(np.max(io)**2 / MSE) * 10
 
         return MSE, RMSE, SNR, PSNR
 
