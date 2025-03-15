@@ -330,7 +330,6 @@ def reverse_DPCM(Y_dpcm, Cb_dpcm, Cr_dpcm, Bsize):
 
     return dict_Q
 
-# Encoder and Decoder
 def encoder(img, mode, factor, quality):
     R = img[:, :, 0]
     G = img[:, :, 1]
@@ -480,9 +479,6 @@ def decoder(original_img, dict_DPCM, mode, factor, quality):
     
     print("\n################ UPSAMPLING####################\n")
     
-    #print("Cb shape before Upsampling: ", Cb_d8.shape)
-    #print("Cd shape before Upsampling: ", Cr_d8.shape)
-    
     
     print(f"\nVariant{factor}\n")
     
@@ -496,9 +492,7 @@ def decoder(original_img, dict_DPCM, mode, factor, quality):
     showImage(Y, cm_grey, f" Y (Upsampling ({mode}) with {factor})")
     showImage(Cb, cm_grey, f"Cb (Upsampling ({mode}) with {factor})")
     showImage(Cr, cm_grey, f"Cr (Upsampling ({mode}) with {factor})")
-    
-   # print(f"Cb shape after Upsampling({factor}):", Cb.shape)
-    #print(f"Cd shape after Upsampling({factor}):", Cr.shape)
+
     
     print("\n################################################")
     
@@ -512,10 +506,6 @@ def decoder(original_img, dict_DPCM, mode, factor, quality):
 
     original_img = remove_padding(img, original_img.shape)
         
-    '''
-    print("Imagem recuperada")
-    showSubMatrix(original_img,8,8,8)
-    '''
     
     return original_img, Y
 
@@ -548,31 +538,12 @@ def main():
     img = plt.imread(filename)
     showImage(img, None, "Original Image")
     
-    '''
-    print("Imagem original")
-    showSubMatrix(img,8,8,8)
-    '''
-    
-    # print("Image type:", type(img))
-    # print("Image shape:", img.shape)
-    
-    # print(img[0:8, 0:8, 0])
-    # print("Image data type:", img.dtype)
-    
-    # showSubMatrix(img, 0, 0, 8)
-    
     mode = "linear"
     #mode = "cubic"
     
     factor = [4, 2, 2]
     #factor = [4,2,0]
     
-    # for quality in [10, 25, 50, 75, 100]:
-        
-    #     dict_Q = encoder(img, mode, factor, quality)
-        
-    #     imgRec = decoder(img, dict_Q, mode, factor, quality)
-    #     showImage(imgRec, None, "Reconstructed Image")
     
     dict_Q, Y_org = encoder(img, mode, factor, 75)
         
