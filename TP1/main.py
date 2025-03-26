@@ -422,12 +422,11 @@ def encoder(img, mode, factor, quality):
     
     ###################### EX 9.1 #############################
     Y_dpcm, Cb_dpcm, Cr_dpcm = DPCM(dict_Q['Yb_Q'], dict_Q['Cbb_Q'], dict_Q['Crb_Q'], 8)
-    print("Matriz DPCM")
     showSubMatrix(Y_dpcm, 8, 8, 8)
     
     dict_DPCM = {'Y_dpcm': Y_dpcm, 'Cb_dpcm': Cb_dpcm, 'Cr_dpcm': Cr_dpcm}
 
-    return dict_DPCM, Y
+    return dict_DPCM
 
 
 def decoder(original_img, dict_DPCM, mode, factor, quality):
@@ -435,13 +434,13 @@ def decoder(original_img, dict_DPCM, mode, factor, quality):
     ###################### EX 9.2 #############################
     Y_dpcm, Cb_dpcm, Cr_dpcm = dict_DPCM.values()
     dict_Q = reverse_DPCM(Y_dpcm, Cb_dpcm, Cr_dpcm, 8)
-    print("Matriz Yb_iDCPM")
+    print("Matriz Yb_Q")
     showSubMatrix(dict_Q['Yb_Q'], 8, 8, 8)
     
     ###################### EX 8.2 #############################
     dct8_dict = iquantization(dict_Q, quality, 8)
     Y_dct8, Cb_dct8, Cr_dct8 = dct8_dict.values()
-    print("Matriz Yb_iQ")
+    print("Matriz Y_dct8")
     showSubMatrix(Y_dct8, 8, 8, 8)
     
     '''
@@ -463,9 +462,6 @@ def decoder(original_img, dict_DPCM, mode, factor, quality):
     showImageDCT(Y_d8, cm_grey,"IDCT8 IN Y")
     showImageDCT(Cb_d8, cm_grey,"IDCT8 IN Cb_d")
     showImageDCT(Cr_d8, cm_grey,"IDCT8 IN Cr_d")
-    
-    print("Matriz Y_iDCT8x8")
-    showSubMatrix(Y_d8,8,8,8)
     
     '''
     ###################### EX 7.3 #############################
@@ -505,37 +501,13 @@ def decoder(original_img, dict_DPCM, mode, factor, quality):
     img = channels_to_img(R, G, B)
 
     original_img = remove_padding(img, original_img.shape)
-        
+    
     '''
     print("Imagem recuperada")
     showSubMatrix(original_img,8,8,8)
     '''
     
-    return original_img, Y
-
-def showDiff(original_channel, rebuilt_channel):
-
-    diff = abs(original_channel - rebuilt_channel)
-
-    print("AVG_diff: ", np.mean(diff))
-    print("Max_diff: ", np.max(diff))
-    
-    showImage(diff, cm_grey, 'Diff')
-    
-def stats(img,img_rec):
-        
-        io = img.astype(np.float32)
-        ir = img_rec.astype(np.float32)
-        shape  = np.shape(img)
-    
-        MSE = np.sum(pow(io - ir, 2))/(int(shape[0]) * int(shape[1]))
-        RMSE = np.sqrt(MSE)
-        
-        P = np.sum(pow(io, 2))/(int(shape[0]) * int(shape[1]))
-        SNR = np.log10(P/MSE) * 10
-        PSNR = np.log10(pow(np.max(io), 2) / MSE) * 10
-
-        return MSE, RMSE, SNR, PSNR
+    return original_img
 
 def main():
     filename = "imagens/airport.bmp"
@@ -568,16 +540,10 @@ def main():
     #     imgRec = decoder(img, dict_Q, mode, factor, quality)
     #     showImage(imgRec, None, "Reconstructed Image")
     
-    dict_Q, Y_org = encoder(img, mode, factor, 75)
+    dict_Q = encoder(img, mode, factor, 75)
         
-    imgRec, Y_rec = decoder(img, dict_Q, mode, factor, 75)
+    imgRec = decoder(img, dict_Q, mode, factor, 75)
     showImage(imgRec, None, "Reconstructed Image")
-    
-    showDiff(Y_org,Y_rec)
-    
-    MSE, RMSE, SNR, PSNR = stats(img, imgRec)
-    print("\n-- STATS --")
-    print(f"MSE = {MSE}\nRMSE = {RMSE}\nSNR = {SNR}\nPSNR = {PSNR}",)
     
 if __name__ == "__main__":
     main()
