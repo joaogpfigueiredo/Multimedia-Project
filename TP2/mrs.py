@@ -126,7 +126,12 @@ if __name__ == "__main__":
     fig.colorbar(img, ax=ax, format="%+2.0f dB")
 
     features = getFeatures(audiosPath, sr, mono)
-
+    
+    # Ex 2.1.4
+    normalized_features, min_vals, max_vals = normalizeFeatures(features)
+    features_with_minmax = np.vstack([min_vals, max_vals, normalized_features])
+    np.savetxt("extracted_features.csv", features_with_minmax, delimiter=",", fmt="%.6f")
+    
     print(features.shape)
     print(features[0])
     print(features[1])
