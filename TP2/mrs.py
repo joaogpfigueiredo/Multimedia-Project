@@ -24,6 +24,14 @@ def read_features(input):
 def save_features(output, features):
     np.savetxt(output, features, fmt="%0.6f", delimiter=',')
 
+def save_normalized_features(output, features_list, min_vals, max_vals):
+
+
+    data_to_save = [min_vals, max_vals]
+    data_to_save.extend(features_list)
+
+    np.savetxt(output, data_to_save, fmt="%0.5f", delimiter=',')
+
 def read_top_10(input):
     data = np.genfromtxt(input, delimiter=',', dtype=None, encoding=None)
     return [(name, float(dist)) for name, dist in data]
@@ -56,6 +64,28 @@ def normalizeFeatures(features):
             normalizedFeatures[:, i] = (features[:, i] - min_val) / (max_val - min_val) #Formula da normalizacao
         
     return normalizedFeatures, min_vals, max_vals
+
+def normalized_features_query(a, b, features_list, min_vals, max_vals, output): 
+    
+    if os.path.isfile(output):
+        return read_features(output)
+    
+    num_rows, num_cols = np.shape(features_list)
+
+    for column in range(num_cols):
+        fMin = min_vals[column]
+        fMax = max_vals[column]
+
+        if fMax == fMin:
+            features_list[:, column] = 0
+        else:
+            features_list[:, column] = a + ((features_list[:, column] - fMin) * (b - a)) / (fMax - fMin)
+
+    print("Features normalized successfully!")
+
+    save_normalized_features(output, features_list, min_vals, max_vals)
+    
+    return features_list
 
 def implementedSC(signal, hopSize = 512, sr = 22050):
 
@@ -91,28 +121,37 @@ def implementedSC(signal, hopSize = 512, sr = 22050):
     
     return np.array(centroids)   
 
-def evaluate_centroid_folder(folder_path, sr=22050):
+def evaluate_centroid_folder(audios_folder, sr=22050):
+     
+    results = []
 
-    metrics = []                                    # [(r, rmse), …]
+    for filename in os.listdir(audios_folder):
+        file_path = os.path.join(audios_folder, filename)
+        signal, sr = librosa.load(file_path, sr=sr, mono=True)
+        my_centroid = implementedSC(signal)
+        librosa_centroid = librosa.feature.spectral_centroid(y=signal, sr=sr)
 
-    for fname in os.listdir(folder_path):
-        path = os.path.join(folder_path, fname)
-        audio, _sr = librosa.load(path, sr=sr, mono=True)
+        # Adjust the starting index as necessary to match the data
+        sc = librosa_centroid[:, 2:]  
+        my_centroid = my_centroid[:sc.shape[1]]  
 
-        sc_custom = implementedSC(audio)            # tua função
-        sc_librosa = librosa.feature.spectral_centroid(y=audio, sr=_sr)[0]
+        # Ensure that the two arrays have the same length
+        minSize = min(sc.shape[1], len(my_centroid))
+        sc = sc[:, :minSize]
+        my_centroid = my_centroid[:minSize]
 
-        # descartar 2 frames iniciais do Librosa, 3 do custom, cortar comprimentos
-        sc_librosa = sc_librosa[2:]
-        sc_custom  = sc_custom[3:len(sc_librosa)+3]
 
-        r, _   = pearsonr(sc_librosa, sc_custom)
-        rmse   = np.sqrt(mean_squared_error(sc_librosa, sc_custom))
-        metrics.append((r, rmse))
+        sc_flat = sc.flatten() # Flatten the 2D array to 1D
 
-    print("Metrics computed successfully!")
-    save_features("pearson_rmse_results.csv", metrics)
-    return metrics
+        correlation, _ = pearsonr(sc_flat, my_centroid)
+        rmse = np.sqrt(mean_squared_error(sc_flat, my_centroid))
+
+        results.append((correlation, rmse))
+        
+    print("Results saved successfully!")
+    save_features("pearson_rmse_results.csv", results)
+
+    return results
 
 
 def compute_distances(query_vec, features_norm):
@@ -251,7 +290,7 @@ if __name__ == "__main__":
     plt.close('all')
     
     #--- Load file
-    fName = os.path.join("./Queries/MT0000414517.mp3")   
+    fName = os.path.join("./Queries", "MT0000414517.mp3")   
     audiosPath = os.path.join("./Dataset/Audios") 
     sr = 22050
     mono = True
@@ -275,16 +314,19 @@ if __name__ == "__main__":
     ax.set_title('Power spectrogram')
     fig.colorbar(img, ax=ax, format="%+2.0f dB")
 
-    features = getFeatures(audiosPath, sr, mono)
-    results = evaluate_centroid_folder(audiosPath)
-    euclideanDistance, manhattanDistance, cosineDistance = compute_distances(features[2], features)
-    top_10_euclidean, top_10_manhattan, top_10_cosine = build_top10_rankings(euclideanDistance, manhattanDistance, cosineDistance, audiosPath)
-    
-    # Ex 2.1.4
-    normalized_features, min_vals, max_vals = normalizeFeatures(features)
+    features_all = getFeatures(audiosPath, sr, mono)
+
+    normalized_features, min_vals, max_vals = normalizeFeatures(features_all)
     features_with_minmax = np.vstack([min_vals, max_vals, normalized_features])
     save_features("extracted_features.csv", features_with_minmax)
+
+    features_query = getFeatures('./Queries/', sr, mono)
+    features_normalized_query = normalized_features_query(0,1,features_query, min_vals, max_vals, "featuresNormalizedQuery.csv")
         
+    results = evaluate_centroid_folder(audiosPath)
+    euclideanDistance, manhattanDistance, cosineDistance = compute_distances(features_normalized_query[2], normalized_features)
+    top_10_euclidean, top_10_manhattan, top_10_cosine = build_top10_rankings(euclideanDistance, manhattanDistance, cosineDistance, audiosPath)
+
     #--- Extract features    
     sc = librosa.feature.spectral_centroid(y = y)  #default parameters: sr = 22050 Hz, mono, window length = frame length = 92.88 ms e hop length = 23.22 ms 
     sc = sc[0, :]
