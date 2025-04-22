@@ -91,102 +91,97 @@ def implementedSC(signal, hopSize = 512, sr = 22050):
     
     return np.array(centroids)   
 
-def calculate_and_compare(audios_folder, sr=22050):
-     
-    results = []
+def evaluate_centroid_folder(folder_path, sr=22050):
 
-    for filename in os.listdir(audios_folder):
-        file_path = os.path.join(audios_folder, filename)
-        signal, sr = librosa.load(file_path, sr=sr, mono=True)
-        my_centroid = implementedSC(signal)
-        librosa_centroid = librosa.feature.spectral_centroid(y=signal, sr=sr)
+    metrics = []                                    # [(r, rmse), …]
 
-        sc = librosa_centroid[:, 2:]  
-        my_centroid = my_centroid[:sc.shape[1]]  
+    for fname in os.listdir(folder_path):
+        path = os.path.join(folder_path, fname)
+        audio, _sr = librosa.load(path, sr=sr, mono=True)
 
-        minSize = min(sc.shape[1], len(my_centroid))
-        sc = sc[:, :minSize]
-        my_centroid = my_centroid[:minSize]
+        sc_custom = implementedSC(audio)            # tua função
+        sc_librosa = librosa.feature.spectral_centroid(y=audio, sr=_sr)[0]
 
-        sc_flat = sc.flatten()
+        # descartar 2 frames iniciais do Librosa, 3 do custom, cortar comprimentos
+        sc_librosa = sc_librosa[2:]
+        sc_custom  = sc_custom[3:len(sc_librosa)+3]
 
-        correlation, _ = pearsonr(sc_flat, my_centroid)
-        rmse = np.sqrt(mean_squared_error(sc_flat, my_centroid))
+        r, _   = pearsonr(sc_librosa, sc_custom)
+        rmse   = np.sqrt(mean_squared_error(sc_librosa, sc_custom))
+        metrics.append((r, rmse))
 
-        results.append((correlation, rmse))
-        
-    print("Results saved successfully!")
-    save_features("pearson_rmse_results.csv", results)
-
-    return results
+    print("Metrics computed successfully!")
+    save_features("pearson_rmse_results.csv", metrics)
+    return metrics
 
 
-def similarity_measurements(query_features, features_list_normalized):
+def compute_distances(query_vec, features_norm):
+    """Return Euclidean, Manhattan and Cosine distances to every song.
 
-    if os.path.isfile("euclideanDistance.csv") and os.path.isfile("manhattanDistance.csv") and os.path.isfile("cosineDistance.csv"):
-        euclideanDistance = read_features("euclideanDistance.csv")
-        manhattanDistance = read_features("manhattanDistance.csv")
-        cosineDistance = read_features("cosineDistance.csv")
-        return euclideanDistance, manhattanDistance, cosineDistance
+    Uses cached CSVs if they already exist.
+    """
+    if (all(os.path.isfile(f)
+            for f in ("euclideanDistance.csv",
+                      "manhattanDistance.csv",
+                      "cosineDistance.csv"))):
+        return (read_features("euclideanDistance.csv"),
+                read_features("manhattanDistance.csv"),
+                read_features("cosineDistance.csv"))
 
-    num_songs = len(features_list_normalized) 
+    n = len(features_norm)
+    euclid   = np.zeros(n)
+    manhat   = np.zeros(n)
+    cosine   = np.zeros(n)
 
-    euclideanDistance = np.zeros(num_songs)
-    manhattanDistance = np.zeros(num_songs)
-    cosineDistance = np.zeros(num_songs)
+    for i, feat in enumerate(features_norm):
+        euclid[i] = euclidean_distance(query_vec, feat)
+        manhat[i] = manhattan_distance(query_vec, feat)
+        cosine[i] = cosine_distance(query_vec, feat)
 
-    for i in range(num_songs):
-        euclideanDistance[i] = euclidean_distance(query_features, features_list_normalized[i])
-        manhattanDistance[i] = manhattan_distance(query_features, features_list_normalized[i])
-        cosineDistance[i] = cosine_distance(query_features, features_list_normalized[i])
+    print("Distances computed successfully!")
+    save_features("euclideanDistance.csv", euclid)
+    save_features("manhattanDistance.csv", manhat)
+    save_features("cosineDistance.csv", cosine)
 
-    print("Distances calculated successfully!")
+    return euclid, manhat, cosine
 
-    save_features("euclideanDistance.csv", euclideanDistance)
-    save_features("manhattanDistance.csv", manhattanDistance)
-    save_features("cosineDistance.csv", cosineDistance)
-    
-    return euclideanDistance, manhattanDistance, cosineDistance
+def build_top10_rankings(euclid, manhat, cosine, audio_folder):
+    """Return three Top‑10 lists (Euclidean, Manhattan, Cosine)."""
+    if (all(os.path.isfile(f)
+            for f in ("ranking_euclidean.csv",
+                      "ranking_manhattan.csv",
+                      "ranking_cosine.csv"))):
+        return (read_top_10("ranking_euclidean.csv"),
+                read_top_10("ranking_manhattan.csv"),
+                read_top_10("ranking_cosine.csv"))
 
+    song_names = read_Directory(audio_folder)
 
-def create_similarity_rankings(euclideanDistance, manhattanDistance, cosineDistance, audio_folder_path):
+    idx_euclid = np.argsort(euclid)[:10]
+    idx_manhat = np.argsort(manhat)[:10]
+    idx_cosine = np.argsort(cosine)[:10]
 
-    if os.path.isfile("ranking_euclidean.csv") and os.path.isfile("ranking_manhattan.csv") and os.path.isfile("ranking_cosine.csv"):
-        top_10_euclidean = read_top_10("ranking_euclidean.csv")
-        top_10_manhattan = read_top_10("ranking_manhattan.csv")
-        top_10_cosine = read_top_10("ranking_cosine.csv")
-        return top_10_euclidean, top_10_manhattan, top_10_cosine
-    
-    euclideanRanking = np.argsort(euclideanDistance)[:10]
-    manhattanRanking = np.argsort(manhattanDistance)[:10] 
-    cosineRanking = np.argsort(cosineDistance)[:10]
+    top10_euclid  = [(song_names[i], euclid[i]) for i in idx_euclid]
+    top10_manhat  = [(song_names[i], manhat[i]) for i in idx_manhat]
+    top10_cosine  = [(song_names[i], cosine[i]) for i in idx_cosine]
 
-    listSongsNames = read_Directory(audio_folder_path)
+    # print nicely
+    def _print_list(title, lst):
+        print(f"Top 10 {title}:")
+        for name, dist in lst:
+            print(f"{name}: {dist:.5f}")
 
-    top_10_euclidean = [(listSongsNames[i], euclideanDistance[i]) for i in euclideanRanking]
-    top_10_manhattan  = [(listSongsNames[i], manhattanDistance[i]) for i in manhattanRanking]
-    top_10_cosine = [(listSongsNames[i], cosineDistance[i]) for i in cosineRanking]
+    _print_list("Euclidean Distance", top10_euclid)
+    _print_list("Manhattan Distance", top10_manhat)
+    _print_list("Cosine Distance",    top10_cosine)
 
-
-    print("Top 10 Euclidean Distance Songs:")
-    for name, dist in top_10_euclidean:
-        print(f"{name}: {dist:.5f}")
-
-    print("Top 10 Manhattan Distance Songs:")
-    for name, dist in top_10_manhattan:
-        print(f"{name}: {dist:.5f}")
-
-    print("Top 10 Cosine Distance Songs:")
-    for name, dist in top_10_cosine:
-        print(f"{name}: {dist:.5f}")
+    # save CSVs
+    np.savetxt("ranking_euclidean.csv",  top10_euclid,  fmt="%s", delimiter=",")
+    np.savetxt("ranking_manhattan.csv",  top10_manhat,  fmt="%s", delimiter=",")
+    np.savetxt("ranking_cosine.csv",     top10_cosine,  fmt="%s", delimiter=",")
 
     print("Rankings created successfully!")
-
-    np.savetxt("ranking_euclidean.csv", top_10_euclidean, fmt="%s", delimiter=",")
-    np.savetxt("ranking_manhattan.csv", top_10_manhattan, fmt="%s", delimiter=",")
-    np.savetxt("ranking_cosine.csv", top_10_cosine, fmt="%s", delimiter=",")
-
-    return top_10_euclidean, top_10_manhattan, top_10_cosine
+    return top10_euclid, top10_manhat, top10_cosine
 
 def getStats(features):
     mean = np.mean(features) #media 
@@ -281,9 +276,9 @@ if __name__ == "__main__":
     fig.colorbar(img, ax=ax, format="%+2.0f dB")
 
     features = getFeatures(audiosPath, sr, mono)
-    results = calculate_and_compare(audiosPath)
-    euclideanDistance, manhattanDistance, cosineDistance = similarity_measurements(features[2], features)
-    top_10_euclidean, top_10_manhattan, top_10_cosine = create_similarity_rankings(euclideanDistance, manhattanDistance, cosineDistance, audiosPath)
+    results = evaluate_centroid_folder(audiosPath)
+    euclideanDistance, manhattanDistance, cosineDistance = compute_distances(features[2], features)
+    top_10_euclidean, top_10_manhattan, top_10_cosine = build_top10_rankings(euclideanDistance, manhattanDistance, cosineDistance, audiosPath)
     
     # Ex 2.1.4
     normalized_features, min_vals, max_vals = normalizeFeatures(features)
