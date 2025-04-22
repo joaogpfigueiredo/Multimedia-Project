@@ -196,9 +196,9 @@ def build_top10_rankings(euclid, manhat, cosine, audio_folder):
 
     song_names = read_Directory(audio_folder)
 
-    idx_euclid = np.sort(euclid)[10:]
-    idx_manhat = np.sort(manhat)[10:]
-    idx_cosine = np.sort(cosine)[10:]
+    idx_euclid = np.sort(euclid)[:10]
+    idx_manhat = np.sort(manhat)[:10]
+    idx_cosine = np.sort(cosine)[:10]
 
     top10_euclid  = [(song_names[i], euclid[i]) for i in idx_euclid]
     top10_manhat  = [(song_names[i], manhat[i]) for i in idx_manhat]
