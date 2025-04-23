@@ -155,17 +155,6 @@ def evaluate_centroid_folder(audios_folder, sr=22050):
 
 
 def compute_distances(query_vec, features_norm):
-    """Return Euclidean, Manhattan and Cosine distances to every song.
-
-    Uses cached CSVs if they already exist.
-    """
-    if (all(os.path.isfile(f)
-            for f in ("euclideanDistance.csv",
-                      "manhattanDistance.csv",
-                      "cosineDistance.csv"))):
-        return (read_features("euclideanDistance.csv"),
-                read_features("manhattanDistance.csv"),
-                read_features("cosineDistance.csv"))
 
     n = len(features_norm)
     euclid   = np.zeros(n)
@@ -185,16 +174,8 @@ def compute_distances(query_vec, features_norm):
     return euclid, manhat, cosine
 
 def build_top10_rankings(euclid, manhat, cosine, audio_folder):
-    """Return three Top‑10 lists (Euclidean, Manhattan, Cosine)."""
-    if (all(os.path.isfile(f)
-            for f in ("ranking_euclidean.csv",
-                      "ranking_manhattan.csv",
-                      "ranking_cosine.csv"))):
-        return (read_top_10("ranking_euclidean.csv"),
-                read_top_10("ranking_manhattan.csv"),
-                read_top_10("ranking_cosine.csv"))
 
-    song_names = read_Directory(audio_folder)
+    song_names = [f for f in os.listdir(audio_folder) if os.path.isfile(os.path.join(audio_folder, f))]
 
     idx_euclid = np.argsort(euclid)[:10]
     idx_manhat = np.argsort(manhat)[:10]
@@ -204,15 +185,17 @@ def build_top10_rankings(euclid, manhat, cosine, audio_folder):
     top10_manhat  = [(song_names[i], manhat[i]) for i in idx_manhat]
     top10_cosine  = [(song_names[i], cosine[i]) for i in idx_cosine]
 
-    # print nicely
-    def _print_list(title, lst):
-        print(f"Top 10 {title}:")
-        for name, dist in lst:
-            print(f"{name}: {dist:.5f}")
+    print("Top 10 Euclidean Distance Songs:")
+    for name, dist in top10_euclid:
+        print(f"{name}: {dist:.6f}")
 
-    _print_list("Euclidean Distance", top10_euclid)
-    _print_list("Manhattan Distance", top10_manhat)
-    _print_list("Cosine Distance",    top10_cosine)
+    print("Top 10 Manhattan Distance Songs:")
+    for name, dist in top10_manhat:
+        print(f"{name}: {dist:.6f}")
+
+    print("Top 10 Cosine Distance Songs:")
+    for name, dist in top10_cosine:
+        print(f"{name}: {dist:.6f}")
 
     # save CSVs
     np.savetxt("ranking_euclidean.csv",  top10_euclid,  fmt="%s", delimiter=",")
