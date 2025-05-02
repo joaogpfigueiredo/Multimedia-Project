@@ -311,6 +311,14 @@ def compute_contextual_similarity(dataset_metadata_path, query_metadata_path, ou
         f.write("Song,ContextSimilarity\n")
         for i in range(min(top_n, len(results_sorted))):
             f.write(f"{results_sorted[i, 0]},{results_sorted[i, 1]}\n")
+
+    # Retornar os top_n nomes
+    return [result[0] for result in results_sorted[:top_n]]
+
+def precision(m1, m2, top):
+    precision_score = len(np.intersect1d(m1, m2)) / len(m2) *100
+    print(f"Precision {top}: {precision_score}")
+    return precision_score
                 
 
 if __name__ == "__main__":
@@ -360,7 +368,11 @@ if __name__ == "__main__":
     euclideanDistance, manhattanDistance, cosineDistance = compute_distances(normalized[2], allFeatures[2:])
     top_10_euclidean, top_10_manhattan, top_10_cosine = build_top10_rankings(euclideanDistance, manhattanDistance, cosineDistance, audiosPath)
 
-    compute_contextual_similarity("query_metadata.csv", "panda_dataset_taffc_metadata.csv")
+    # EX 4.1
+    top_matches = compute_contextual_similarity("query_metadata.csv", "panda_dataset_taffc_metadata.csv")
+    precision_euclidean = precision([music[0] for music in top_10_euclidean], top_matches,"Euclidean")
+    precision_manhattan = precision([music[0] for music in top_10_manhattan], top_matches, "Manhattan")
+    precision_cosine = precision([music[0] for music in top_10_cosine], top_matches, "Cosine")
 
     #--- Extract features    
     sc = librosa.feature.spectral_centroid(y = y)  #default parameters: sr = 22050 Hz, mono, window length = frame length = 92.88 ms e hop length = 23.22 ms 
