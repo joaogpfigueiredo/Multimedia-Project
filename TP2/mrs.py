@@ -7,7 +7,7 @@ Created on Tue Apr  6 13:03:06 2021
 import scipy
 import librosa #https://librosa.org/    #sudo apt-get install -y ffmpeg (open mp3 files)
 import librosa.display
-from scipy.spatial.distance import cosine
+from scipy.spatial.distance import cosine, cityblock, euclidean
 # import sounddevice as sd  #https://anaconda.org/conda-forge/python-sounddevice
 import warnings
 import numpy as np
@@ -30,7 +30,7 @@ def save_normalized_features(output, features_list, min_vals, max_vals):
     data_to_save = [min_vals, max_vals]
     data_to_save.extend(features_list)
 
-    np.savetxt(output, data_to_save, fmt="%0.5f", delimiter=',')
+    np.savetxt(output, data_to_save, fmt="%0.6f", delimiter=',')
 
 def read_top_10(input):
     data = np.genfromtxt(input, delimiter=',', dtype=None, encoding=None)
@@ -40,10 +40,10 @@ def read_Directory(path):
         return [f for f in os.listdir(path) if isfile(join(path, f))]
 
 def euclidean_distance(a, b):
-    return np.linalg.norm(a - b)
+    return euclidean(a, b)
 
 def manhattan_distance(a, b):
-    return np.sum(np.abs(a - b))
+    return cityblock(a, b)
 
 def cosine_distance(a, b):
     return cosine(a, b)
@@ -92,32 +92,28 @@ def implementedSC(signal, hopSize = 512, sr = 22050):
     windowSize = 2048
     N = len(signal)
 
-    if N < windowSize:
-        pad = windowSize - N
-    else:
-        pad = (hopSize - ((N - windowSize) % hopSize)) % hopSize
+
+    pad = (hopSize - ((N - windowSize) % hopSize)) % hopSize
 
     signal_padded = np.concatenate([signal, np.zeros(pad)])
 
     windows = np.hanning(windowSize) 
     frequencies = np.fft.rfftfreq(windowSize, 1/sr)     
-
-    spectrogram = []
+   
     num_frames = (len(signal_padded) - windowSize) // hopSize + 1 
     
-    for i in range(0, num_frames * hopSize, hopSize):
+    centroids = np.zeros(num_frames)
+    index = 0
+    for i in range(0, num_frames * hopSize, hopSize): #colocar tudo dentro do mesmo for para evitar guardar o espectro
         frame = signal_padded[i:i+windowSize] * windows
         spectrum = np.abs(np.fft.rfft(frame))
-        spectrogram.append(spectrum)
-    
-    centroids = []
-    for frame in spectrogram:
-        sum_magnitude = np.sum(frame)
-        if sum_magnitude == 0:
-            centroids.append(0)
+        sum_magnitude = np.sum(spectrum)
+        if sum_magnitude == 0: #retirar o append 
+            centroids[index] = 0
         else:
-            sc = np.sum(frequencies * frame) / sum_magnitude
-            centroids.append(sc)
+            sc = np.sum(frequencies * spectrum) / sum_magnitude
+            centroids[index] = sc
+        index += 1
     
     return np.array(centroids)   
 
@@ -125,28 +121,28 @@ def evaluate_centroid_folder(audios_folder, sr=22050):
      
     results = []
 
-    for filename in os.listdir(audios_folder):
+    for i,filename in enumerate (os.listdir(audios_folder)):
         file_path = os.path.join(audios_folder, filename)
         signal, sr = librosa.load(file_path, sr=sr, mono=True)
         my_centroid = implementedSC(signal)
         librosa_centroid = librosa.feature.spectral_centroid(y=signal, sr=sr)
 
-        # Adjust the starting index as necessary to match the data
+        # Se o sc for maior que o my_centroid
         sc = librosa_centroid[:, 2:]  
         my_centroid = my_centroid[:sc.shape[1]]  
 
-        # Ensure that the two arrays have the same length
+        #Se o my_centroid for maior que o sc
         minSize = min(sc.shape[1], len(my_centroid))
         sc = sc[:, :minSize]
         my_centroid = my_centroid[:minSize]
 
 
-        sc_flat = sc.flatten() # Flatten the 2D array to 1D
+        sc_flat = sc.flatten()
 
         correlation, _ = pearsonr(sc_flat, my_centroid)
         rmse = np.sqrt(mean_squared_error(sc_flat, my_centroid))
 
-        results.append((correlation, rmse))
+        results[i] = (correlation, rmse)
         
     print("Results saved successfully!")
     save_features("pearson_rmse_results.csv", results)
@@ -181,9 +177,13 @@ def build_top10_rankings(euclid, manhat, cosine, audio_folder):
     idx_manhat = np.argsort(manhat)[:11]
     idx_cosine = np.argsort(cosine)[:11]
 
-    top10_euclid  = [(song_names[i], euclid[i]) for i in idx_euclid[1:]]
-    top10_manhat  = [(song_names[i], manhat[i]) for i in idx_manhat[1:]]
-    top10_cosine  = [(song_names[i], cosine[i]) for i in idx_cosine[1:]]
+    top10_euclid  = [(song_names[i], euclid[i]) for i in idx_euclid]
+    top10_manhat  = [(song_names[i], manhat[i]) for i in idx_manhat]
+    top10_cosine  = [(song_names[i], cosine[i]) for i in idx_cosine]
+
+    top10_euclid = top10_euclid[1:]
+    top10_manhat = top10_manhat[1:] 
+    top10_cosine = top10_cosine[1:] 
 
     print("Top 10 Euclidean Distance Songs:")
     for name, dist in top10_euclid:
@@ -305,9 +305,15 @@ if __name__ == "__main__":
 
     features_query = getFeatures('./Queries/', sr, mono)
     features_normalized_query = normalized_features_query(0,1,features_query, min_vals, max_vals, "featuresNormalizedQuery.csv")
-        
+    #print(features_normalized_query[2])
+    normfile = os.path.join("validação de resultados_TP2", "FM_Q.csv")
+    allfile = os.path.join("validação de resultados_TP2", "FM_ALL.csv")
+    normalized = read_features(normfile)
+    allFeatures = read_features(allfile)
+
     results = evaluate_centroid_folder(audiosPath)
-    euclideanDistance, manhattanDistance, cosineDistance = compute_distances(features_normalized_query[2], normalized_features)
+    #print(normalized[2])
+    euclideanDistance, manhattanDistance, cosineDistance = compute_distances(normalized[2], allFeatures[2:])
     top_10_euclidean, top_10_manhattan, top_10_cosine = build_top10_rankings(euclideanDistance, manhattanDistance, cosineDistance, audiosPath)
 
     #--- Extract features    
