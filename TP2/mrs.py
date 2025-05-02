@@ -118,10 +118,12 @@ def implementedSC(signal, hopSize = 512, sr = 22050):
     return np.array(centroids)   
 
 def evaluate_centroid_folder(audios_folder, sr=22050):
-     
-    results = []
+    
+    file_list = os.listdir(audios_folder)
+    file_num = len(file_list)
+    results = np.zeros((file_num, 2))
 
-    for i,filename in enumerate (os.listdir(audios_folder)):
+    for i,filename in enumerate (file_list):
         file_path = os.path.join(audios_folder, filename)
         signal, sr = librosa.load(file_path, sr=sr, mono=True)
         my_centroid = implementedSC(signal)
@@ -153,9 +155,9 @@ def evaluate_centroid_folder(audios_folder, sr=22050):
 def compute_distances(query_vec, features_norm):
 
     n = len(features_norm)
-    euclid   = np.zeros(n)
-    manhat   = np.zeros(n)
-    cosine   = np.zeros(n)
+    euclid = np.zeros(n)
+    manhat = np.zeros(n)
+    cosine = np.zeros(n)
 
     for i, feat in enumerate(features_norm):
         euclid[i] = euclidean_distance(query_vec, feat)
