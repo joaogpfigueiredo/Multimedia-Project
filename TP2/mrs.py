@@ -271,6 +271,48 @@ def getFeatures(fName, sr, mono):
     return features
 
 
+def compute_contextual_similarity(dataset_metadata_path, query_metadata_path, output_path="context_similarity.csv",top_n=10):
+    # Ler os dois ficheiros, ignorando a primeira linha (header) e a segunda (linha a ignorar)
+    dataset = np.genfromtxt(dataset_metadata_path, delimiter=",", dtype=str, skip_header=1)
+    query = np.genfromtxt(query_metadata_path, delimiter=",", dtype=str, skip_header=1)  # Só uma query
+
+    # Índices das colunas relevantes (fixos com base na estrutura do ficheiro)
+    SONG_IDX = 0
+    ARTIST_IDX = 1
+    MOODS_IDX = 9
+    GENRES_IDX = 11
+
+    query_artist = query[ARTIST_IDX]
+    query_moods = set(query[MOODS_IDX].split(";")) if query[MOODS_IDX] else set()
+    query_genres = set(query[GENRES_IDX].split(";")) if query[GENRES_IDX] else set()
+
+    results = np.empty((len(dataset), 2), dtype=object)  # Inicializar matriz de resultados
+
+    for i,row in enumerate(dataset):
+        score = 0
+        artist = row[ARTIST_IDX]
+        moods = set(row[MOODS_IDX].split(";")) if row[MOODS_IDX] else set()
+        genres = set(row[GENRES_IDX].split(";")) if row[GENRES_IDX] else set()
+
+        if artist == query_artist:
+            score += 1
+        if query_moods & moods:
+            score += 1
+        if query_genres & genres:
+            score += 1
+
+        results[i] = (row[SONG_IDX], score)
+
+    # Ordenar os resultados pela pontuação (score) em ordem decrescente
+    results_sorted = results[np.argsort(results[:, 1].astype(int))[::-1]]
+
+    # Guardar matriz de similaridade para ficheiro
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write("Song,ContextSimilarity\n")
+        for i in range(min(top_n, len(results_sorted))):
+            f.write(f"{results_sorted[i, 0]},{results_sorted[i, 1]}\n")
+                
+
 if __name__ == "__main__":
     plt.close('all')
     
@@ -317,6 +359,8 @@ if __name__ == "__main__":
     #print(normalized[2])
     euclideanDistance, manhattanDistance, cosineDistance = compute_distances(normalized[2], allFeatures[2:])
     top_10_euclidean, top_10_manhattan, top_10_cosine = build_top10_rankings(euclideanDistance, manhattanDistance, cosineDistance, audiosPath)
+
+    compute_contextual_similarity("query_metadata.csv", "panda_dataset_taffc_metadata.csv")
 
     #--- Extract features    
     sc = librosa.feature.spectral_centroid(y = y)  #default parameters: sr = 22050 Hz, mono, window length = frame length = 92.88 ms e hop length = 23.22 ms 
