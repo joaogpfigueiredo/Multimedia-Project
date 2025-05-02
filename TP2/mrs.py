@@ -274,7 +274,9 @@ def getFeatures(fName, sr, mono):
 def compute_contextual_similarity(dataset_metadata_path, query_metadata_path, output_path="context_similarity.csv",top_n=10):
     # Ler os dois ficheiros, ignorando a primeira linha (header) e a segunda (linha a ignorar)
     dataset = np.genfromtxt(dataset_metadata_path, delimiter=",", dtype=str, skip_header=1)
-    query = np.genfromtxt(query_metadata_path, delimiter=",", dtype=str, skip_header=1)  # Só uma query
+    query = np.genfromtxt(query_metadata_path, delimiter=",", dtype=str, skip_header=1)
+    if query.ndim > 1:
+        query = query[0]
 
     # Índices das colunas relevantes (fixos com base na estrutura do ficheiro)
     SONG_IDX = 0
