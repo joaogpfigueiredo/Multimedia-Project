@@ -271,10 +271,10 @@ def getFeatures(fName, sr, mono):
     return features
 
 
-def compute_contextual_similarity(dataset_metadata_path, query_metadata_path, output_path="context_similarity.csv",top_n=10):
+def compute_contextual_similarity(dataset_metadata_path, query_metadata_path, output_path="context_similarity.csv",top_n=11):
     # Ler os dois ficheiros, ignorando a primeira linha (header) e a segunda (linha a ignorar)
-    dataset = np.genfromtxt(dataset_metadata_path, delimiter=",", dtype=str, skip_header=1)
-    query = np.genfromtxt(query_metadata_path, delimiter=",", dtype=str, skip_header=1)
+    dataset = np.genfromtxt(query_metadata_path , delimiter=",", dtype=str, skip_header=1)
+    query = np.genfromtxt(dataset_metadata_path , delimiter=",", dtype=str, skip_header=1)
     if query.ndim > 1:
         query = query[0]
 
@@ -285,32 +285,35 @@ def compute_contextual_similarity(dataset_metadata_path, query_metadata_path, ou
     GENRES_IDX = 11
 
     query_artist = query[ARTIST_IDX]
-    query_moods = set(query[MOODS_IDX].split(";")) if query[MOODS_IDX] else set()
-    query_genres = set(query[GENRES_IDX].split(";")) if query[GENRES_IDX] else set()
+    query_moods = set(s.strip('"\ ') for s in query[MOODS_IDX].split(";")) if query[MOODS_IDX] else set()
+    query_genres = set(s.strip('"\ ') for s in query[GENRES_IDX].split(";")) if query[GENRES_IDX] else set()
 
     results = np.empty((len(dataset), 2), dtype=object)  # Inicializar matriz de resultados
 
     for i,row in enumerate(dataset):
+        dataset[i, SONG_IDX] = row[SONG_IDX].strip('"') + ".mp3"  # Remover aspas do nome da música
         score = 0
         artist = row[ARTIST_IDX]
-        moods = set(row[MOODS_IDX].split(";")) if row[MOODS_IDX] else set()
-        genres = set(row[GENRES_IDX].split(";")) if row[GENRES_IDX] else set()
+        moods = set(s.strip('"\ ') for s in row[MOODS_IDX].split(";")) if row[MOODS_IDX] else set()
+        genres = set(s.strip('"\ ') for s in row[GENRES_IDX].split(";")) if row[GENRES_IDX] else set()
 
         if artist == query_artist:
             score += 1
-        if query_moods & moods:
-            score += 1
-        if query_genres & genres:
-            score += 1
+        for mood in query_moods:
+            if mood in moods:
+                score += 1
+        for genre in query_genres:
+            if genre in genres:
+                score += 1
+        
 
         results[i] = (row[SONG_IDX], score)
 
     # Ordenar os resultados pela pontuação (score) em ordem decrescente
-    results_sorted = results[np.argsort(results[:, 1].astype(int))[::-1]]
+    results_sorted = results[np.argsort(results[:, 1].astype('int16'))[::-1]]
 
     # Guardar matriz de similaridade para ficheiro
     with open(output_path, "w", encoding="utf-8") as f:
-        f.write("Song,ContextSimilarity\n")
         for i in range(min(top_n, len(results_sorted))):
             f.write(f"{results_sorted[i, 0]},{results_sorted[i, 1]}\n")
 
@@ -318,8 +321,14 @@ def compute_contextual_similarity(dataset_metadata_path, query_metadata_path, ou
     return [result[0] for result in results_sorted[:top_n]]
 
 def precision(m1, m2, top):
-    precision_score = len(np.intersect1d(m1, m2)) / len(m2) *100
-    print(f"Precision {top}: {precision_score}")
+    precision_score = 0
+    for i in range(len(m1)):
+        if m1[i][0] in m2:
+            precision_score += 1
+    precision_score = precision_score / len(m1) * 100
+    print(f"Precision for {top} distance: {precision_score:.2f}")
+
+
     return precision_score
                 
 
@@ -327,7 +336,7 @@ if __name__ == "__main__":
     plt.close('all')
     
     #--- Load file
-    fName = os.path.join("./Queries", "MT0000414517.mp3")   
+    fName = os.path.join("./Queries", "MT0000414517.mp3")
     audiosPath = os.path.join("./Dataset/Audios") 
     sr = 22050
     mono = True
@@ -351,30 +360,30 @@ if __name__ == "__main__":
     ax.set_title('Power spectrogram')
     fig.colorbar(img, ax=ax, format="%+2.0f dB")
 
-    features_all = getFeatures(audiosPath, sr, mono)
+    #features_all = getFeatures(audiosPath, sr, mono)
 
-    normalized_features, min_vals, max_vals = normalizeFeatures(features_all)
-    features_with_minmax = np.vstack([min_vals, max_vals, normalized_features])
-    save_features("extracted_features.csv", features_with_minmax)
+    #normalized_features, min_vals, max_vals = normalizeFeatures(features_all)
+    #features_with_minmax = np.vstack([min_vals, max_vals, normalized_features])
+    #save_features("extracted_features.csv", features_with_minmax)
 
-    features_query = getFeatures('./Queries/', sr, mono)
-    features_normalized_query = normalized_features_query(0,1,features_query, min_vals, max_vals, "featuresNormalizedQuery.csv")
+    #features_query = getFeatures('./Queries/', sr, mono)
+    #features_normalized_query = normalized_features_query(0,1,features_query, min_vals, max_vals, "featuresNormalizedQuery.csv")
     #print(features_normalized_query[2])
     normfile = os.path.join("validação de resultados_TP2", "FM_Q.csv")
     allfile = os.path.join("validação de resultados_TP2", "FM_ALL.csv")
     normalized = read_features(normfile)
     allFeatures = read_features(allfile)
 
-    results = evaluate_centroid_folder(audiosPath)
+    #results = evaluate_centroid_folder(audiosPath)
     #print(normalized[2])
     euclideanDistance, manhattanDistance, cosineDistance = compute_distances(normalized[2], allFeatures[2:])
     top_10_euclidean, top_10_manhattan, top_10_cosine = build_top10_rankings(euclideanDistance, manhattanDistance, cosineDistance, audiosPath)
 
     # EX 4.1
     top_matches = compute_contextual_similarity("query_metadata.csv", "panda_dataset_taffc_metadata.csv")
-    precision_euclidean = precision([music[0] for music in top_10_euclidean], top_matches,"Euclidean")
-    precision_manhattan = precision([music[0] for music in top_10_manhattan], top_matches, "Manhattan")
-    precision_cosine = precision([music[0] for music in top_10_cosine], top_matches, "Cosine")
+    precision_euclidean = precision(top_10_euclidean, top_matches[1:],"Euclidean")
+    precision_manhattan = precision(top_10_manhattan, top_matches[1:], "Manhattan")
+    precision_cosine = precision(top_10_cosine, top_matches[1:], "Cosine")
 
     #--- Extract features    
     sc = librosa.feature.spectral_centroid(y = y)  #default parameters: sr = 22050 Hz, mono, window length = frame length = 92.88 ms e hop length = 23.22 ms 
